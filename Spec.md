@@ -14,8 +14,15 @@ user can specify two modes: categorization and coding
     - The code book file contains information on which sentence should be the coding target + what code should be applied under what criteria 
   - 2nd round is to give codes to all files based on the code book file.
     - Users can start from 2nd round if they manually created their code book
-    - seperate the text file in sentences, and allocate sentence ID
-    - first, give the entire file to LLM with sentence ID and let LLM give sentence ID to code
+    - Per file...
+      - seperate the text file in sentences, and allocate sentence ID
+      - Let LLM to decide to divide the entire text to chunks or not.
+        - This is to reduce LLM input tokens per coding
+        - No chunking could be better if the target text is not so long.
+        - If to divide, let LLM to specify the ranges of chunking.
+          - Here, let LLM also decide which chunk NOT to code because of the irrelevance to the user's interest.
+      - Per chunk if chuncked, otherwise entire text
+        - Let LLM specify all the sets of the sentence ID and what code to apply in a single I/O        
 
 #### Categorization
 - Force the LLM agent to read all the target files for 2 rounds:
