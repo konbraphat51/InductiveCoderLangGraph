@@ -84,6 +84,15 @@ uv run inductive-coder analyze \
   --output-dir ./output
 ```
 
+**Create a manual code book**:
+```bash
+# Copy the template
+cp codebook_template.json my_codebook.json
+
+# Edit the file with your codes
+# Then use it with --code-book-file option
+```
+
 ### 3. View Results
 
 Launch the interactive UI:

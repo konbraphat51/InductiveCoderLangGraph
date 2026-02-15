@@ -4,11 +4,15 @@ import json
 import os
 from typing import Optional, Any
 
+from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel
 
 from inductive_coder.domain.repositories import ILLMClient
+
+# Load environment variables
+load_dotenv()
 
 
 class OpenAILLMClient(ILLMClient):

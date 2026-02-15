@@ -16,6 +16,13 @@ from inductive_coder.domain.entities import (
     DocumentCode,
 )
 from inductive_coder.infrastructure.llm_client import get_llm_client
+from inductive_coder.application.prompts.templates import (
+    get_read_document_prompt,
+    get_create_codebook_prompt,
+    get_chunking_decision_prompt,
+    get_code_chunk_prompt,
+    get_categorize_document_prompt,
+)
 
 
 # Pydantic schemas for structured output
@@ -71,7 +78,7 @@ class DocumentCodeSchema(BaseModel):
 
 # TypedDict for LangGraph state
 
-class Round1StateDict(TypedDict):
+class ReadingStateDict(TypedDict):
     """State dict for Round 1."""
     mode: AnalysisMode
     documents: list[Document]
@@ -81,7 +88,7 @@ class Round1StateDict(TypedDict):
     code_book: CodeBook | None
 
 
-class Round2CodingStateDict(TypedDict):
+class CodingStateDict(TypedDict):
     """State dict for Round 2 coding."""
     documents: list[Document]
     code_book: CodeBook
@@ -92,7 +99,7 @@ class Round2CodingStateDict(TypedDict):
     sentence_codes: Annotated[list[SentenceCode], operator.add]
 
 
-class Round2CategorizationStateDict(TypedDict):
+class CategorizationStateDict(TypedDict):
     """State dict for Round 2 categorization."""
     documents: list[Document]
     code_book: CodeBook
@@ -102,7 +109,7 @@ class Round2CategorizationStateDict(TypedDict):
 
 # Round 1: Reading and code book creation
 
-async def read_document_node(state: Round1StateDict) -> dict[str, Any]:
+async def read_document_node(state: ReadingStateDict) -> dict[str, Any]:
     """Read a document and take notes."""
     current_idx = state["current_doc_index"]
     documents = state["documents"]
@@ -117,21 +124,12 @@ async def read_document_node(state: Round1StateDict) -> dict[str, Any]:
     llm = get_llm_client()
     
     # Create prompt for reading and note-taking
-    prompt = f"""You are analyzing documents for inductive {mode.value}.
-
-User's research question and context:
-{user_context}
-
-Document: {doc.path.name}
-Content:
-{doc.content}
-
-Read this document carefully and take notes about:
-1. Key themes, patterns, or categories that emerge
-2. Important concepts or ideas relevant to the research question
-3. Potential codes that could be used to categorize this content
-
-Provide your notes in a clear, structured format."""
+    prompt = get_read_document_prompt(
+        mode=mode.value,
+        user_context=user_context,
+        doc_name=doc.path.name,
+        doc_content=doc.content
+    )
 
     response = await llm.generate(prompt)
     
@@ -141,14 +139,14 @@ Provide your notes in a clear, structured format."""
     }
 
 
-def should_continue_reading(state: Round1StateDict) -> str:
+def should_continue_reading(state: ReadingStateDict) -> str:
     """Decide whether to continue reading documents."""
     if state["current_doc_index"] < len(state["documents"]):
         return "read_document"
     return "create_codebook"
 
 
-async def create_codebook_node(state: Round1StateDict) -> dict[str, Any]:
+async def create_codebook_node(state: ReadingStateDict) -> dict[str, Any]:
     """Create code book from accumulated notes."""
     notes = state["notes"]
     user_context = state["user_context"]
@@ -159,21 +157,11 @@ async def create_codebook_node(state: Round1StateDict) -> dict[str, Any]:
     # Create prompt for code book generation
     all_notes = "\n\n".join(notes)
     
-    prompt = f"""You are creating a code book for inductive {mode.value} analysis.
-
-User's research question and context:
-{user_context}
-
-Based on your notes from reading all documents:
-{all_notes}
-
-Create a comprehensive code book with codes that:
-1. Capture the key themes, patterns, and categories in the data
-2. Are relevant to the user's research question
-3. Have clear criteria for when to apply each code
-4. Are mutually exclusive where possible but can overlap when necessary
-
-Provide 5-10 codes that will be most useful for analyzing this data."""
+    prompt = get_create_codebook_prompt(
+        mode=mode.value,
+        user_context=user_context,
+        all_notes=all_notes
+    )
 
     response = await llm.generate_structured(
         prompt=prompt,
@@ -207,7 +195,7 @@ def create_round1_workflow() -> Any:
             user_context: str,
         ) -> CodeBook:
             """Execute Round 1 workflow."""
-            initial_state: Round1StateDict = {
+            initial_state: ReadingStateDict = {
                 "mode": mode,
                 "documents": documents,
                 "user_context": user_context,
@@ -220,7 +208,7 @@ def create_round1_workflow() -> Any:
             return result["code_book"]
     
     # Build the graph
-    workflow = StateGraph(Round1StateDict)
+    workflow = StateGraph(ReadingStateDict)
     
     workflow.add_node("read_document", read_document_node)
     workflow.add_node("create_codebook", create_codebook_node)
@@ -243,7 +231,7 @@ def create_round1_workflow() -> Any:
 
 # Round 2: Coding mode
 
-async def decide_chunking_node(state: Round2CodingStateDict) -> dict[str, Any]:
+async def decide_chunking_node(state: CodingStateDict) -> dict[str, Any]:
     """Decide how to chunk the current document."""
     current_idx = state["current_doc_index"]
     documents = state["documents"]
@@ -264,24 +252,11 @@ async def decide_chunking_node(state: Round2CodingStateDict) -> dict[str, Any]:
     sentence_list = "\n".join([f"{s.id}: {s.text}" for s in doc.sentences])
     code_list = "\n".join([f"- {c.name}: {c.description}" for c in code_book.codes])
     
-    prompt = f"""You are analyzing a document for coding.
-
-Code book:
-{code_list}
-
-Document: {doc.path.name}
-Sentences:
-{sentence_list}
-
-Decide whether to:
-1. Process the entire document at once (if it's short or highly cohesive)
-2. Divide it into chunks (if it's long or covers multiple topics)
-
-If chunking, specify:
-- The start and end sentence IDs for each chunk
-- Whether each chunk is relevant for coding (based on the code book)
-
-This helps minimize LLM token usage by skipping irrelevant sections."""
+    prompt = get_chunking_decision_prompt(
+        doc_name=doc.path.name,
+        sentence_list=sentence_list,
+        code_list=code_list
+    )
 
     response = await llm.generate_structured(
         prompt=prompt,
@@ -337,7 +312,7 @@ This helps minimize LLM token usage by skipping irrelevant sections."""
     }
 
 
-async def code_chunk_node(state: Round2CodingStateDict) -> dict[str, Any]:
+async def code_chunk_node(state: CodingStateDict) -> dict[str, Any]:
     """Apply codes to a chunk of sentences."""
     chunks = state["chunks"]
     current_chunk_idx = state["current_chunk_index"]
@@ -361,20 +336,10 @@ async def code_chunk_node(state: Round2CodingStateDict) -> dict[str, Any]:
         for c in code_book.codes
     ])
     
-    prompt = f"""Apply codes to sentences in this chunk.
-
-Code book:
-{code_list}
-
-Sentences:
-{sentence_list}
-
-For each sentence that matches one or more codes:
-1. Identify the sentence ID
-2. Apply the appropriate code(s)
-3. Provide a brief rationale
-
-Return all sentence-code pairs for this chunk."""
+    prompt = get_code_chunk_prompt(
+        sentence_list=sentence_list,
+        code_list=code_list
+    )
 
     response = await llm.generate_structured(
         prompt=prompt,
@@ -401,21 +366,21 @@ Return all sentence-code pairs for this chunk."""
     }
 
 
-def should_continue_coding_chunks(state: Round2CodingStateDict) -> str:
+def should_continue_coding_chunks(state: CodingStateDict) -> str:
     """Decide whether to continue coding chunks."""
     if state["current_chunk_index"] < len(state["chunks"]):
         return "code_chunk"
     return "next_document"
 
 
-def should_continue_coding_documents(state: Round2CodingStateDict) -> str:
+def should_continue_coding_documents(state: CodingStateDict) -> str:
     """Decide whether to continue with next document."""
     if state["current_doc_index"] < len(state["documents"]) - 1:
         return "decide_chunking"
     return END
 
 
-async def next_document_node(state: Round2CodingStateDict) -> dict[str, Any]:
+async def next_document_node(state: CodingStateDict) -> dict[str, Any]:
     """Move to next document."""
     return {"current_doc_index": state["current_doc_index"] + 1}
 
@@ -435,7 +400,7 @@ def create_round2_coding_workflow() -> Any:
             code_book: CodeBook,
         ) -> list[SentenceCode]:
             """Execute Round 2 coding workflow."""
-            initial_state: Round2CodingStateDict = {
+            initial_state: CodingStateDict = {
                 "documents": documents,
                 "code_book": code_book,
                 "current_doc_index": 0,
@@ -449,7 +414,7 @@ def create_round2_coding_workflow() -> Any:
             return result["sentence_codes"]
     
     # Build the graph
-    workflow = StateGraph(Round2CodingStateDict)
+    workflow = StateGraph(CodingStateDict)
     
     workflow.add_node("decide_chunking", decide_chunking_node)
     workflow.add_node("code_chunk", code_chunk_node)
@@ -482,7 +447,7 @@ def create_round2_coding_workflow() -> Any:
 
 # Round 2: Categorization mode
 
-async def categorize_document_node(state: Round2CategorizationStateDict) -> dict[str, Any]:
+async def categorize_document_node(state: CategorizationStateDict) -> dict[str, Any]:
     """Categorize a single document."""
     current_idx = state["current_doc_index"]
     documents = state["documents"]
@@ -501,17 +466,11 @@ async def categorize_document_node(state: Round2CategorizationStateDict) -> dict
         for c in code_book.codes
     ])
     
-    prompt = f"""Categorize this document using the code book.
-
-Code book:
-{code_list}
-
-Document: {doc.path.name}
-Content:
-{doc.content}
-
-Apply all relevant codes to this document. You can apply multiple codes if appropriate.
-For each code applied, provide a brief rationale."""
+    prompt = get_categorize_document_prompt(
+        doc_name=doc.path.name,
+        doc_content=doc.content,
+        code_list=code_list
+    )
 
     response = await llm.generate_structured(
         prompt=prompt,
@@ -539,7 +498,7 @@ For each code applied, provide a brief rationale."""
     }
 
 
-def should_continue_categorization(state: Round2CategorizationStateDict) -> str:
+def should_continue_categorization(state: CategorizationStateDict) -> str:
     """Decide whether to continue categorizing documents."""
     if state["current_doc_index"] < len(state["documents"]):
         return "categorize_document"
@@ -561,7 +520,7 @@ def create_round2_categorization_workflow() -> Any:
             code_book: CodeBook,
         ) -> list[DocumentCode]:
             """Execute Round 2 categorization workflow."""
-            initial_state: Round2CategorizationStateDict = {
+            initial_state: CategorizationStateDict = {
                 "documents": documents,
                 "code_book": code_book,
                 "current_doc_index": 0,
@@ -572,7 +531,7 @@ def create_round2_categorization_workflow() -> Any:
             return result["document_codes"]
     
     # Build the graph
-    workflow = StateGraph(Round2CategorizationStateDict)
+    workflow = StateGraph(CategorizationStateDict)
     
     workflow.add_node("categorize_document", categorize_document_node)
     

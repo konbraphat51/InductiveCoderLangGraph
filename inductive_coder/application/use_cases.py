@@ -14,6 +14,11 @@ from inductive_coder.domain.repositories import (
     ICodeBookRepository,
     IAnalysisResultRepository,
 )
+from inductive_coder.application.workflows import (
+    create_round1_workflow,
+    create_round2_coding_workflow,
+    create_round2_categorization_workflow,
+)
 
 
 class AnalysisUseCase:
@@ -60,7 +65,6 @@ class AnalysisUseCase:
         if existing_code_book:
             code_book = self.code_book_repo.load_code_book(existing_code_book)
         else:
-            from inductive_coder.application.workflows import create_round1_workflow
             workflow = create_round1_workflow()
             code_book = await workflow.execute(
                 mode=mode,
@@ -73,11 +77,6 @@ class AnalysisUseCase:
             self.code_book_repo.save_code_book(code_book, code_book_path)
         
         # Round 2
-        from inductive_coder.application.workflows import (
-            create_round2_coding_workflow,
-            create_round2_categorization_workflow,
-        )
-        
         if mode == AnalysisMode.CODING:
             workflow = create_round2_coding_workflow()
             sentence_codes = await workflow.execute(

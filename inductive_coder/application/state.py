@@ -15,7 +15,7 @@ from inductive_coder.domain.entities import (
 
 
 @dataclass
-class Round1State:
+class ReadingState:
     """State for Round 1: Reading and note-taking."""
     
     mode: AnalysisMode
@@ -31,7 +31,7 @@ class Round1State:
 
 
 @dataclass
-class Round2CodingState:
+class CodingState:
     """State for Round 2: Coding mode."""
     
     documents: list[Document]
@@ -48,7 +48,7 @@ class Round2CodingState:
 
 
 @dataclass
-class Round2CategorizationState:
+class CategorizationState:
     """State for Round 2: Categorization mode."""
     
     documents: list[Document]
