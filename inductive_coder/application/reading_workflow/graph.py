@@ -30,7 +30,7 @@ class ReadingWorkflow:
             "mode": mode,
             "documents": documents,
             "user_context": user_context,
-            "notes": [],
+            "notes": "",  # Start with empty long-term memory
             "current_doc_index": 0,
             "code_book": None,
         }

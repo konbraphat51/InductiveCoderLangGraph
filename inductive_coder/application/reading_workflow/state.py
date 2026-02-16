@@ -1,7 +1,6 @@
 """State definitions for the Reading workflow."""
 
-from typing import Annotated, TypedDict
-import operator
+from typing import TypedDict
 
 from inductive_coder.domain.entities import (
     AnalysisMode,
@@ -15,6 +14,6 @@ class ReadingStateDict(TypedDict):
     mode: AnalysisMode
     documents: list[Document]
     user_context: str
-    notes: Annotated[list[str], operator.add]
+    notes: str  # Long-term memory as a single editable text
     current_doc_index: int
     code_book: CodeBook | None

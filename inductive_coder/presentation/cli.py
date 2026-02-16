@@ -12,7 +12,7 @@ from rich.table import Table
 from dotenv import load_dotenv
 
 from inductive_coder.domain.entities import AnalysisMode
-from inductive_coder.application.use_cases import AnalysisUseCase
+from inductive_coder.application.use_cases import AnalysisUseCase, CodeBookGenerationUseCase
 from inductive_coder.infrastructure.repositories import (
     FileSystemDocumentRepository,
     JSONCodeBookRepository,
@@ -158,6 +158,101 @@ def analyze(
         
         console.print(f"  - Summary: summary.txt")
         console.print("\n[dim]Run 'inductive-coder ui --results-dir {output_dir}' to view results interactively[/dim]")
+        
+    except Exception as e:
+        console.print(f"\n[red]Error:[/red] {e}")
+        import traceback
+        console.print(traceback.format_exc())
+        sys.exit(1)
+
+
+@app.command()
+def generate_codebook(
+    mode: str = typer.Option(..., "--mode", "-m", help="Analysis mode: coding or categorization"),
+    input_dir: Path = typer.Option(..., "--input-dir", "-i", help="Directory containing documents to analyze"),
+    prompt_file: Optional[Path] = typer.Option(None, "--prompt-file", "-p", help="File containing user prompt/context"),
+    output_file: Path = typer.Option("./code_book.json", "--output-file", "-o", help="Output file for code book"),
+) -> None:
+    """Generate code book only (Round 1 only) without applying codes."""
+    
+    # Validate mode
+    try:
+        analysis_mode = AnalysisMode(mode.lower())
+    except ValueError:
+        console.print(f"[red]Error:[/red] Invalid mode '{mode}'. Must be 'coding' or 'categorization'")
+        sys.exit(1)
+    
+    # Validate input directory
+    if not input_dir.exists():
+        console.print(f"[red]Error:[/red] Input directory not found: {input_dir}")
+        sys.exit(1)
+    
+    # Load user context
+    user_context = ""
+    if prompt_file:
+        if not prompt_file.exists():
+            console.print(f"[red]Error:[/red] Prompt file not found: {prompt_file}")
+            sys.exit(1)
+        user_context = prompt_file.read_text(encoding="utf-8")
+    else:
+        console.print("[yellow]Warning:[/yellow] No prompt file specified. Using default context.")
+        user_context = "Analyze the documents and identify key themes and patterns."
+    
+    # Create output directory if needed
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    
+    console.print("\n[bold cyan]Code Book Generation (Round 1 Only)[/bold cyan]")
+    console.print(f"Mode: [green]{analysis_mode.value}[/green]")
+    console.print(f"Input: [blue]{input_dir}[/blue]")
+    console.print(f"Output: [blue]{output_file}[/blue]")
+    console.print()
+    
+    # Run Round 1 only
+    try:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Generating code book...", total=None)
+            
+            # Create use case
+            use_case = CodeBookGenerationUseCase(
+                doc_repository=FileSystemDocumentRepository(),
+                code_book_repository=JSONCodeBookRepository(),
+            )
+            
+            # Execute
+            code_book = asyncio.run(
+                use_case.execute(
+                    mode=analysis_mode,
+                    input_dir=input_dir,
+                    user_context=user_context,
+                    output_path=output_file,
+                )
+            )
+            
+            progress.update(task, completed=True)
+        
+        # Display results
+        console.print("\n[bold green]✓ Code book generated![/bold green]\n")
+        
+        # Show code book
+        console.print("[bold]Code Book:[/bold]")
+        table = Table(show_header=True, header_style="bold magenta")
+        table.add_column("Code", style="cyan")
+        table.add_column("Description")
+        table.add_column("Criteria")
+        
+        for code in code_book.codes:
+            table.add_row(code.name, code.description, code.criteria)
+        
+        console.print(table)
+        console.print()
+        
+        console.print(f"[bold]Code book saved to:[/bold] [blue]{output_file}[/blue]")
+        console.print("\n[dim]You can now use this code book with:")
+        console.print(f"  inductive-coder analyze --mode {mode} --code-book-file {output_file} ...[/dim]")
         
     except Exception as e:
         console.print(f"\n[red]Error:[/red] {e}")

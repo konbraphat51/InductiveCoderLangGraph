@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from inductive_coder.domain.entities import DocumentCode
 from inductive_coder.infrastructure.llm_client import get_llm_client
-from inductive_coder.application.prompts import get_categorize_document_prompt
+from inductive_coder.application.categorization_workflow.prompts import get_categorize_document_prompts
 from inductive_coder.application.categorization_workflow.state import CategorizationStateDict
 
 
@@ -42,15 +42,16 @@ async def categorize_document_node(state: CategorizationStateDict) -> dict[str, 
         for c in code_book.codes
     ])
     
-    prompt = get_categorize_document_prompt(
+    system_prompt, user_prompt = get_categorize_document_prompts(
         doc_name=doc.path.name,
         doc_content=doc.content,
         code_list=code_list
     )
 
     response = await llm.generate_structured(
-        prompt=prompt,
+        prompt=user_prompt,
         schema=DocumentCodeSchema,
+        system_prompt=system_prompt,
     )
     
     # Convert to domain entities

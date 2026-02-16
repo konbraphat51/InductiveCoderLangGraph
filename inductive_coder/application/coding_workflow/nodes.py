@@ -6,9 +6,9 @@ from pydantic import BaseModel, Field
 
 from inductive_coder.domain.entities import Chunk, SentenceCode
 from inductive_coder.infrastructure.llm_client import get_llm_client
-from inductive_coder.application.prompts import (
-    get_chunking_decision_prompt,
-    get_code_chunk_prompt,
+from inductive_coder.application.coding_workflow.prompts import (
+    get_chunking_decision_prompts,
+    get_code_chunk_prompts,
 )
 from inductive_coder.application.coding_workflow.state import CodingStateDict
 
@@ -66,15 +66,16 @@ async def decide_chunking_node(state: CodingStateDict) -> dict[str, Any]:
     sentence_list = "\n".join([f"{s.id}: {s.text}" for s in doc.sentences])
     code_list = "\n".join([f"- {c.name}: {c.description}" for c in code_book.codes])
     
-    prompt = get_chunking_decision_prompt(
+    system_prompt, user_prompt = get_chunking_decision_prompts(
         doc_name=doc.path.name,
         sentence_list=sentence_list,
         code_list=code_list
     )
 
     response = await llm.generate_structured(
-        prompt=prompt,
+        prompt=user_prompt,
         schema=ChunkingDecisionSchema,
+        system_prompt=system_prompt,
     )
     
     # Create chunks
@@ -150,14 +151,15 @@ async def code_chunk_node(state: CodingStateDict) -> dict[str, Any]:
         for c in code_book.codes
     ])
     
-    prompt = get_code_chunk_prompt(
+    system_prompt, user_prompt = get_code_chunk_prompts(
         sentence_list=sentence_list,
         code_list=code_list
     )
 
     response = await llm.generate_structured(
-        prompt=prompt,
+        prompt=user_prompt,
         schema=SentenceCodesSchema,
+        system_prompt=system_prompt,
     )
     
     # Convert to domain entities

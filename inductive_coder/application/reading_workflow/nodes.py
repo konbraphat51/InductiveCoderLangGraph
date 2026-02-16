@@ -6,9 +6,9 @@ from pydantic import BaseModel, Field
 
 from inductive_coder.domain.entities import Code, CodeBook
 from inductive_coder.infrastructure.llm_client import get_llm_client
-from inductive_coder.application.prompts import (
-    get_read_document_prompt,
-    get_create_codebook_prompt,
+from inductive_coder.application.reading_workflow.prompts import (
+    get_read_document_prompts,
+    get_create_codebook_prompts,
 )
 from inductive_coder.application.reading_workflow.state import ReadingStateDict
 
@@ -40,21 +40,26 @@ async def read_document_node(state: ReadingStateDict) -> dict[str, Any]:
     doc = documents[current_idx]
     user_context = state["user_context"]
     mode = state["mode"]
+    current_notes = state["notes"]
     
     llm = get_llm_client()
     
-    # Create prompt for reading and note-taking
-    prompt = get_read_document_prompt(
+    # Get system and user prompts
+    system_prompt, user_prompt = get_read_document_prompts(
         mode=mode.value,
         user_context=user_context,
         doc_name=doc.path.name,
         doc_content=doc.content
     )
+    
+    # Add current notes context if exists
+    if current_notes:
+        system_prompt += f"\n\nYour current notes (long-term memory):\n{current_notes}\n\nYou can update or expand these notes based on the new document."
 
-    response = await llm.generate(prompt)
+    response = await llm.generate(user_prompt, system_prompt=system_prompt)
     
     return {
-        "notes": [f"Document {doc.path.name}:\n{response}"],
+        "notes": response,  # Replace notes with new version
         "current_doc_index": current_idx + 1,
     }
 
@@ -67,18 +72,17 @@ async def create_codebook_node(state: ReadingStateDict) -> dict[str, Any]:
     
     llm = get_llm_client()
     
-    # Create prompt for code book generation
-    all_notes = "\n\n".join(notes)
-    
-    prompt = get_create_codebook_prompt(
+    # Get system and user prompts
+    system_prompt, user_prompt = get_create_codebook_prompts(
         mode=mode.value,
         user_context=user_context,
-        all_notes=all_notes
+        all_notes=notes
     )
 
     response = await llm.generate_structured(
-        prompt=prompt,
+        prompt=user_prompt,
         schema=CodeBookSchema,
+        system_prompt=system_prompt,
     )
     
     # Convert to domain entities
