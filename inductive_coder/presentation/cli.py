@@ -188,7 +188,7 @@ def analyze(
             console.print(f"[bold]Total coded sentences:[/bold] {len(result.sentence_codes)}")
             
             # Count by code
-            code_counts = {}
+            code_counts: dict[str, int] = {}
             for sc in result.sentence_codes:
                 code_counts[sc.code.name] = code_counts.get(sc.code.name, 0) + 1
             
@@ -199,12 +199,12 @@ def analyze(
             console.print(f"[bold]Total coded documents:[/bold] {len(set(dc.file_path for dc in result.document_codes))}")
             
             # Count by code
-            code_counts = {}
+            code_counts_doc: dict[str, int] = {}
             for dc in result.document_codes:
-                code_counts[dc.code.name] = code_counts.get(dc.code.name, 0) + 1
+                code_counts_doc[dc.code.name] = code_counts_doc.get(dc.code.name, 0) + 1
             
             console.print("\n[bold]Documents per code:[/bold]")
-            for code_name, count in sorted(code_counts.items()):
+            for code_name, count in sorted(code_counts_doc.items()):
                 console.print(f"  {code_name}: {count}")
         
         console.print(f"\n[bold]Results saved to:[/bold] [blue]{output_dir}[/blue]")

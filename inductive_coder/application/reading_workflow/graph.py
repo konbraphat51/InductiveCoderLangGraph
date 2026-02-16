@@ -16,7 +16,7 @@ from inductive_coder.application.reading_workflow.edges import should_continue_r
 class ReadingWorkflow:
     """Wrapper for Reading workflow."""
     
-    def __init__(self, graph: StateGraph) -> None:
+    def __init__(self, graph: StateGraph[ReadingStateDict]) -> None:
         self.app = graph.compile()
     
     async def execute(
@@ -45,7 +45,7 @@ def create_reading_workflow() -> ReadingWorkflow:
     """Create the Reading workflow graph."""
     
     # Build the graph
-    workflow = StateGraph(ReadingStateDict)
+    workflow = StateGraph[ReadingStateDict](ReadingStateDict)
     
     # Add nodes
     workflow.add_node("read_document", read_document_node)
