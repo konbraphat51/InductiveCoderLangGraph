@@ -1,0 +1,19 @@
+"""State definitions for the Reading workflow."""
+
+from typing import TypedDict
+
+from inductive_coder.domain.entities import (
+    AnalysisMode,
+    CodeBook,
+    Document,
+)
+
+
+class ReadingStateDict(TypedDict):
+    """State dict for Reading workflow (LangGraph state)."""
+    mode: AnalysisMode
+    documents: list[Document]
+    user_context: str
+    notes: str  # Long-term memory as a single editable text
+    current_doc_index: int
+    code_book: CodeBook | None
