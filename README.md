@@ -8,6 +8,11 @@ An LLM-based inductive coding tool built with LangGraph for qualitative research
   - **Coding Mode**: Sentence-level coding with intelligent chunking
   - **Categorization Mode**: Document-level categorization
 
+- **Hierarchical Code Structure:**
+  - **Flat (depth 1)**: Traditional flat code structure with no hierarchy
+  - **Two-Level (depth 2)**: Parent-child relationships for organized coding
+  - **Arbitrary Depth**: Unlimited hierarchy levels, decided by the LLM
+
 - **Two-Round Analysis:**
   - **Round 1**: Read all files and create a code book
   - **Round 2**: Apply codes based on the code book
@@ -70,6 +75,33 @@ uv run inductive-coder analyze \
 ```bash
 uv run inductive-coder analyze \
   --mode categorization \
+  --input-dir ./data \
+  --prompt-file my_prompt.md \
+  --output-dir ./output
+```
+
+**With Hierarchical Codes**:
+```bash
+# Flat structure (default, no hierarchy)
+uv run inductive-coder analyze \
+  --mode coding \
+  --hierarchy-depth 1 \
+  --input-dir ./data \
+  --prompt-file my_prompt.md \
+  --output-dir ./output
+
+# Two-level hierarchy (parent-child)
+uv run inductive-coder analyze \
+  --mode coding \
+  --hierarchy-depth 2 \
+  --input-dir ./data \
+  --prompt-file my_prompt.md \
+  --output-dir ./output
+
+# Arbitrary depth (LLM decides)
+uv run inductive-coder analyze \
+  --mode coding \
+  --hierarchy-depth arbitrary \
   --input-dir ./data \
   --prompt-file my_prompt.md \
   --output-dir ./output

@@ -13,6 +13,7 @@ from inductive_coder.domain.entities import (
     DocumentCode,
     Chunk,
     AnalysisResult,
+    HierarchyDepth,
 )
 
 
@@ -26,7 +27,21 @@ def test_code_creation() -> None:
     
     assert code.name == "Positive Service"
     assert code.description == "Customer expressed satisfaction with service"
+    assert code.parent_code_name is None
     assert "Positive Service" in str(code)
+
+
+def test_code_with_parent() -> None:
+    """Test creating a code with parent."""
+    code = Code(
+        name="Excellent Support",
+        description="Outstanding customer support experience",
+        criteria="Mentions exceptional help or resolution",
+        parent_code_name="Positive Service",
+    )
+    
+    assert code.name == "Excellent Support"
+    assert code.parent_code_name == "Positive Service"
 
 
 def test_code_book_operations() -> None:
@@ -148,3 +163,56 @@ def test_analysis_result_categorization_mode() -> None:
     codes_for_doc1 = result.get_codes_for_document(Path("/tmp/doc1.txt"))
     assert len(codes_for_doc1) == 1
     assert codes_for_doc1[0].file_path == Path("/tmp/doc1.txt")
+
+
+def test_hierarchy_depth_enum() -> None:
+    """Test HierarchyDepth enum values."""
+    assert HierarchyDepth.FLAT.value == "1"
+    assert HierarchyDepth.TWO_LEVEL.value == "2"
+    assert HierarchyDepth.ARBITRARY.value == "arbitrary"
+
+
+def test_code_book_hierarchy() -> None:
+    """Test code book with hierarchical codes."""
+    code_book = CodeBook(mode=AnalysisMode.CODING, hierarchy_depth=HierarchyDepth.TWO_LEVEL)
+    
+    # Create parent codes
+    parent1 = Code(name="Service Quality", description="Overall service quality", criteria="Service-related")
+    parent2 = Code(name="Product Quality", description="Overall product quality", criteria="Product-related")
+    
+    # Create child codes
+    child1 = Code(
+        name="Excellent Support",
+        description="Outstanding support",
+        criteria="Exceptional help",
+        parent_code_name="Service Quality"
+    )
+    child2 = Code(
+        name="Poor Support",
+        description="Poor support experience",
+        criteria="Unhelpful staff",
+        parent_code_name="Service Quality"
+    )
+    
+    code_book.add_code(parent1)
+    code_book.add_code(parent2)
+    code_book.add_code(child1)
+    code_book.add_code(child2)
+    
+    assert len(code_book) == 4
+    assert code_book.hierarchy_depth == HierarchyDepth.TWO_LEVEL
+    
+    # Test get_root_codes
+    root_codes = code_book.get_root_codes()
+    assert len(root_codes) == 2
+    assert parent1 in root_codes
+    assert parent2 in root_codes
+    
+    # Test get_children
+    service_children = code_book.get_children("Service Quality")
+    assert len(service_children) == 2
+    assert child1 in service_children
+    assert child2 in service_children
+    
+    product_children = code_book.get_children("Product Quality")
+    assert len(product_children) == 0
