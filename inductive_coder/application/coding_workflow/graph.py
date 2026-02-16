@@ -1,5 +1,7 @@
 """Graph construction for the Coding workflow."""
 
+import asyncio
+import os
 from typing import Any
 
 from langgraph.graph import StateGraph, END
@@ -10,6 +12,7 @@ from inductive_coder.application.coding_workflow.nodes import (
     decide_chunking_node,
     code_chunk_node,
     next_document_node,
+    process_single_document,
 )
 from inductive_coder.application.coding_workflow.edges import (
     should_continue_coding_chunks,
@@ -28,19 +31,29 @@ class CodingWorkflow:
         documents: list[Document],
         code_book: CodeBook,
     ) -> list[SentenceCode]:
-        """Execute Coding workflow."""
-        initial_state: CodingStateDict = {
-            "documents": documents,
-            "code_book": code_book,
-            "current_doc_index": 0,
-            "current_doc": None,
-            "chunks": [],
-            "current_chunk_index": 0,
-            "sentence_codes": [],
-        }
+        """Execute Coding workflow with parallel processing."""
+        # Get max concurrent requests from environment
+        max_concurrent = int(os.getenv("MAX_CONCURRENT_REQUESTS", "5"))
         
-        result = await self.app.ainvoke(initial_state)
-        return result["sentence_codes"]
+        # Create semaphore for rate limiting
+        semaphore = asyncio.Semaphore(max_concurrent)
+        
+        # Process documents in parallel with rate limiting
+        async def process_with_limit(doc: Document) -> list[SentenceCode]:
+            async with semaphore:
+                return await process_single_document(doc, code_book)
+        
+        # Execute all documents in parallel
+        results = await asyncio.gather(
+            *[process_with_limit(doc) for doc in documents]
+        )
+        
+        # Flatten results
+        sentence_codes: list[SentenceCode] = []
+        for doc_codes in results:
+            sentence_codes.extend(doc_codes)
+        
+        return sentence_codes
 
 
 def create_coding_workflow() -> CodingWorkflow:

@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from inductive_coder.domain.entities import DocumentCode
+from inductive_coder.domain.entities import CodeBook, Document, DocumentCode
 from inductive_coder.infrastructure.llm_client import get_llm_client, get_node_model
 from inductive_coder.application.categorization_workflow.prompts import get_categorize_document_prompts
 from inductive_coder.application.categorization_workflow.state import CategorizationStateDict
@@ -23,17 +23,8 @@ class DocumentCodeSchema(BaseModel):
 
 # Node functions
 
-async def categorize_document_node(state: CategorizationStateDict) -> dict[str, Any]:
-    """Categorize a single document."""
-    current_idx = state["current_doc_index"]
-    documents = state["documents"]
-    
-    if current_idx >= len(documents):
-        return {"current_doc_index": current_idx}
-    
-    doc = documents[current_idx]
-    code_book = state["code_book"]
-    
+async def categorize_single_document(doc: Document, code_book: CodeBook) -> list[DocumentCode]:
+    """Categorize a single document (for parallel processing)."""
     llm = get_llm_client(model=get_node_model("CATEGORIZE_DOCUMENT_MODEL"))
     
     # Create prompt
@@ -68,6 +59,22 @@ async def categorize_document_node(state: CategorizationStateDict) -> dict[str, 
                     rationale=rationale,
                 )
             )
+    
+    return document_codes
+
+
+async def categorize_document_node(state: CategorizationStateDict) -> dict[str, Any]:
+    """Categorize a single document."""
+    current_idx = state["current_doc_index"]
+    documents = state["documents"]
+    
+    if current_idx >= len(documents):
+        return {"current_doc_index": current_idx}
+    
+    doc = documents[current_idx]
+    code_book = state["code_book"]
+    
+    document_codes = await categorize_single_document(doc, code_book)
     
     return {
         "document_codes": document_codes,

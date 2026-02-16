@@ -1,12 +1,14 @@
 """Graph construction for the Categorization workflow."""
 
+import asyncio
+import os
 from typing import Any
 
 from langgraph.graph import StateGraph, END
 
 from inductive_coder.domain.entities import CodeBook, Document, DocumentCode
 from inductive_coder.application.categorization_workflow.state import CategorizationStateDict
-from inductive_coder.application.categorization_workflow.nodes import categorize_document_node
+from inductive_coder.application.categorization_workflow.nodes import categorize_document_node, categorize_single_document
 from inductive_coder.application.categorization_workflow.edges import should_continue_categorization
 
 
@@ -21,16 +23,29 @@ class CategorizationWorkflow:
         documents: list[Document],
         code_book: CodeBook,
     ) -> list[DocumentCode]:
-        """Execute Categorization workflow."""
-        initial_state: CategorizationStateDict = {
-            "documents": documents,
-            "code_book": code_book,
-            "current_doc_index": 0,
-            "document_codes": [],
-        }
+        """Execute Categorization workflow with parallel processing."""
+        # Get max concurrent requests from environment
+        max_concurrent = int(os.getenv("MAX_CONCURRENT_REQUESTS", "5"))
         
-        result = await self.app.ainvoke(initial_state)
-        return result["document_codes"]
+        # Create semaphore for rate limiting
+        semaphore = asyncio.Semaphore(max_concurrent)
+        
+        # Process documents in parallel with rate limiting
+        async def process_with_limit(doc: Document) -> list[DocumentCode]:
+            async with semaphore:
+                return await categorize_single_document(doc, code_book)
+        
+        # Execute all documents in parallel
+        results = await asyncio.gather(
+            *[process_with_limit(doc) for doc in documents]
+        )
+        
+        # Flatten results
+        document_codes: list[DocumentCode] = []
+        for doc_codes in results:
+            document_codes.extend(doc_codes)
+        
+        return document_codes
 
 
 def create_categorization_workflow() -> CategorizationWorkflow:

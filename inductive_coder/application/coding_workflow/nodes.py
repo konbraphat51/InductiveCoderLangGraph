@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from inductive_coder.domain.entities import Chunk, SentenceCode
+from inductive_coder.domain.entities import Chunk, CodeBook, Document, SentenceCode
 from inductive_coder.infrastructure.llm_client import get_llm_client, get_node_model
 from inductive_coder.application.coding_workflow.prompts import (
     get_chunking_decision_prompts,
@@ -43,23 +43,10 @@ class SentenceCodesSchema(BaseModel):
     codes: list[SentenceCodeSchema] = Field(description="List of sentence codes")
 
 
-# Node functions
+# Helper functions for parallel processing
 
-async def decide_chunking_node(state: CodingStateDict) -> dict[str, Any]:
-    """Decide how to chunk the current document."""
-    current_idx = state["current_doc_index"]
-    documents = state["documents"]
-    
-    if current_idx >= len(documents):
-        return {
-            "current_doc": None,
-            "chunks": [],
-            "current_chunk_index": 0,
-        }
-    
-    doc = documents[current_idx]
-    code_book = state["code_book"]
-    
+async def decide_chunking_for_document(doc: Document, code_book: CodeBook) -> list[Chunk]:
+    """Decide how to chunk a document (for parallel processing)."""
     llm = get_llm_client(model=get_node_model("DECIDE_CHUNKING_MODEL"))
     
     # Create sentence list for the prompt
@@ -120,27 +107,14 @@ async def decide_chunking_node(state: CodingStateDict) -> dict[str, Any]:
                     )
                 )
     
-    return {
-        "current_doc": doc,
-        "chunks": chunks,
-        "current_chunk_index": 0,
-    }
+    return chunks
 
 
-async def code_chunk_node(state: CodingStateDict) -> dict[str, Any]:
-    """Apply codes to a chunk of sentences."""
-    chunks = state["chunks"]
-    current_chunk_idx = state["current_chunk_index"]
-    code_book = state["code_book"]
-    
-    if current_chunk_idx >= len(chunks):
-        return {"current_chunk_index": current_chunk_idx}
-    
-    chunk = chunks[current_chunk_idx]
-    
+async def code_single_chunk(chunk: Chunk, code_book: CodeBook) -> list[SentenceCode]:
+    """Apply codes to a single chunk (for parallel processing)."""
     # Skip if not relevant
     if not chunk.should_code:
-        return {"current_chunk_index": current_chunk_idx + 1}
+        return []
     
     llm = get_llm_client(model=get_node_model("CODE_CHUNK_MODEL"))
     
@@ -175,6 +149,62 @@ async def code_chunk_node(state: CodingStateDict) -> dict[str, Any]:
                     rationale=sc.get("rationale"),
                 )
             )
+    
+    return sentence_codes
+
+
+async def process_single_document(doc: Document, code_book: CodeBook) -> list[SentenceCode]:
+    """Process a single document completely (for parallel processing)."""
+    # Step 1: Decide chunking
+    chunks = await decide_chunking_for_document(doc, code_book)
+    
+    # Step 2: Code all chunks (sequentially for now, could be parallel within doc)
+    all_sentence_codes: list[SentenceCode] = []
+    for chunk in chunks:
+        chunk_codes = await code_single_chunk(chunk, code_book)
+        all_sentence_codes.extend(chunk_codes)
+    
+    return all_sentence_codes
+
+
+# Node functions
+
+async def decide_chunking_node(state: CodingStateDict) -> dict[str, Any]:
+    """Decide how to chunk the current document."""
+    current_idx = state["current_doc_index"]
+    documents = state["documents"]
+    
+    if current_idx >= len(documents):
+        return {
+            "current_doc": None,
+            "chunks": [],
+            "current_chunk_index": 0,
+        }
+    
+    doc = documents[current_idx]
+    code_book = state["code_book"]
+    
+    chunks = await decide_chunking_for_document(doc, code_book)
+    
+    return {
+        "current_doc": doc,
+        "chunks": chunks,
+        "current_chunk_index": 0,
+    }
+
+
+async def code_chunk_node(state: CodingStateDict) -> dict[str, Any]:
+    """Apply codes to a chunk of sentences."""
+    chunks = state["chunks"]
+    current_chunk_idx = state["current_chunk_index"]
+    code_book = state["code_book"]
+    
+    if current_chunk_idx >= len(chunks):
+        return {"current_chunk_index": current_chunk_idx}
+    
+    chunk = chunks[current_chunk_idx]
+    
+    sentence_codes = await code_single_chunk(chunk, code_book)
     
     return {
         "sentence_codes": sentence_codes,
