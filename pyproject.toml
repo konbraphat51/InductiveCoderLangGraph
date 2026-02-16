@@ -1,58 +1,9 @@
 [project]
-name = "inductive-coder-langgraph"
+name = "inductivecoderlanggraph"
 version = "0.1.0"
-description = "LLM-based inductive coding tool using LangGraph"
+description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "langgraph>=0.2.0",
-    "langchain>=0.3.0",
-    "langchain-openai>=0.2.0",
-    "python-dotenv>=1.0.0",
-    "pydantic>=2.0.0",
-    "pydantic-settings>=2.0.0",
-    "rich>=13.0.0",
-    "typer>=0.12.0",
+    "langgraph==1.0.8",
 ]
-
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.0.0",
-    "pytest-asyncio>=0.23.0",
-    "pytest-cov>=4.1.0",
-    "black>=24.0.0",
-    "ruff>=0.3.0",
-    "mypy>=1.8.0",
-]
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[tool.uv]
-dev-dependencies = [
-    "pytest>=8.0.0",
-    "pytest-asyncio>=0.23.0",
-    "pytest-cov>=4.1.0",
-    "black>=24.0.0",
-    "ruff>=0.3.0",
-    "mypy>=1.8.0",
-]
-
-[tool.black]
-line-length = 88
-target-version = ['py312']
-
-[tool.ruff]
-line-length = 88
-target-version = "py312"
-
-[tool.mypy]
-python_version = "3.12"
-strict = true
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
-
-[project.scripts]
-inductive-coder = "inductive_coder.main:app"
