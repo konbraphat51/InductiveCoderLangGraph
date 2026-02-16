@@ -65,9 +65,9 @@ MAX_CONCURRENT_REQUESTS=5
 
 The tool uses **parallel processing** to analyze multiple documents simultaneously:
 
-- **Automatic Parallelization**: Documents are processed in parallel during both Round 2 (coding/categorization)
+- **Automatic Parallelization**: Documents are processed in parallel during Round 2 (coding/categorization)
 - **Rate Limiting**: Configurable `MAX_CONCURRENT_REQUESTS` prevents API throttling
-- **Speed Improvements**: Processing time scales with document count, not linearly
+- **Speed Improvements**: Processing time scales sub-linearly with document count
   - Example: 10 documents might take ~2-3x the time of 1 document (instead of 10x)
 
 **Tuning Concurrency**:
