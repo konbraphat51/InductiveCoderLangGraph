@@ -13,6 +13,14 @@ class AnalysisMode(str, Enum):
     CATEGORIZATION = "categorization"
 
 
+class HierarchyDepth(str, Enum):
+    """Hierarchy depth for code structure."""
+    
+    FLAT = "1"  # No hierarchy
+    TWO_LEVEL = "2"  # Maximum 2 levels (parent-child)
+    ARBITRARY = "arbitrary"  # Unlimited depth (LLM decides)
+
+
 @dataclass(frozen=True)
 class Sentence:
     """A single sentence with an ID in a document."""
@@ -33,6 +41,7 @@ class Code:
     name: str
     description: str
     criteria: str  # When to apply this code
+    parent_code_name: Optional[str] = None  # Name of parent code for hierarchical structure
     
     def __str__(self) -> str:
         return f"{self.name}: {self.description}"
@@ -69,6 +78,7 @@ class CodeBook:
     codes: list[Code] = field(default_factory=list)
     mode: AnalysisMode = AnalysisMode.CODING
     context: str = ""  # User's research question/context
+    hierarchy_depth: HierarchyDepth = HierarchyDepth.FLAT
     
     def add_code(self, code: Code) -> None:
         """Add a code to the code book."""
@@ -80,6 +90,14 @@ class CodeBook:
             if code.name == name:
                 return code
         return None
+    
+    def get_children(self, parent_name: str) -> list[Code]:
+        """Get all codes that are children of the specified parent code."""
+        return [code for code in self.codes if code.parent_code_name == parent_name]
+    
+    def get_root_codes(self) -> list[Code]:
+        """Get all codes with no parent (top-level codes)."""
+        return [code for code in self.codes if code.parent_code_name is None]
     
     def __len__(self) -> int:
         return len(self.codes)

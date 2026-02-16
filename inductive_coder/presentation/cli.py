@@ -9,9 +9,10 @@ import typer
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
+from rich.tree import Tree
 from dotenv import load_dotenv
 
-from inductive_coder.domain.entities import AnalysisMode
+from inductive_coder.domain.entities import AnalysisMode, HierarchyDepth, CodeBook, Code
 from inductive_coder.application.use_cases import AnalysisUseCase, CodeBookGenerationUseCase
 from inductive_coder.infrastructure.repositories import (
     FileSystemDocumentRepository,
@@ -26,6 +27,63 @@ app = typer.Typer(help="Inductive Coder - LLM-based inductive coding tool")
 console = Console()
 
 
+def display_code_book(code_book: CodeBook) -> None:
+    """Display code book with hierarchical structure if applicable."""
+    if code_book.hierarchy_depth == HierarchyDepth.FLAT:
+        # Display as flat table
+        table = Table(show_header=True, header_style="bold magenta")
+        table.add_column("Code", style="cyan")
+        table.add_column("Description")
+        table.add_column("Criteria")
+        
+        for code in code_book.codes:
+            table.add_row(code.name, code.description, code.criteria)
+        
+        console.print(table)
+    else:
+        # Display as hierarchical tree
+        console.print(f"[bold]Hierarchical Code Structure (depth: {code_book.hierarchy_depth.value}):[/bold]\n")
+        
+        # Build tree
+        tree = Tree("📚 [bold]Code Book[/bold]")
+        
+        # Add root codes first
+        root_codes = code_book.get_root_codes()
+        _add_codes_to_tree(tree, root_codes, code_book)
+        
+        console.print(tree)
+        
+        # Also show flat table for reference
+        console.print("\n[dim]Flat view:[/dim]")
+        table = Table(show_header=True, header_style="bold magenta")
+        table.add_column("Code", style="cyan")
+        table.add_column("Parent", style="yellow")
+        table.add_column("Description")
+        table.add_column("Criteria")
+        
+        for code in code_book.codes:
+            parent_name = code.parent_code_name or "-"
+            table.add_row(code.name, parent_name, code.description, code.criteria)
+        
+        console.print(table)
+
+
+def _add_codes_to_tree(tree_node: Tree, codes: list[Code], code_book: CodeBook) -> None:
+    """Recursively add codes to tree."""
+    for code in codes:
+        # Create node for this code
+        label = f"[cyan]{code.name}[/cyan]: {code.description}"
+        code_node = tree_node.add(label)
+        
+        # Add criteria as sub-item
+        code_node.add(f"[dim]Criteria: {code.criteria}[/dim]")
+        
+        # Add children recursively
+        children = code_book.get_children(code.name)
+        if children:
+            _add_codes_to_tree(code_node, children, code_book)
+
+
 @app.command()
 def analyze(
     mode: str = typer.Option(..., "--mode", "-m", help="Analysis mode: coding or categorization"),
@@ -33,6 +91,7 @@ def analyze(
     prompt_file: Optional[Path] = typer.Option(None, "--prompt-file", "-p", help="File containing user prompt/context"),
     code_book_file: Optional[Path] = typer.Option(None, "--code-book-file", "-c", help="Existing code book (skip round 1)"),
     output_dir: Path = typer.Option("./output", "--output-dir", "-o", help="Output directory for results"),
+    hierarchy_depth: str = typer.Option("1", "--hierarchy-depth", "-d", help="Code hierarchy depth: 1 (flat), 2 (two-level), or arbitrary (unlimited)"),
 ) -> None:
     """Run inductive coding analysis."""
     
@@ -41,6 +100,13 @@ def analyze(
         analysis_mode = AnalysisMode(mode.lower())
     except ValueError:
         console.print(f"[red]Error:[/red] Invalid mode '{mode}'. Must be 'coding' or 'categorization'")
+        sys.exit(1)
+    
+    # Validate hierarchy depth
+    try:
+        hierarchy = HierarchyDepth(hierarchy_depth.lower())
+    except ValueError:
+        console.print(f"[red]Error:[/red] Invalid hierarchy depth '{hierarchy_depth}'. Must be '1', '2', or 'arbitrary'")
         sys.exit(1)
     
     # Validate input directory
@@ -69,6 +135,7 @@ def analyze(
     
     console.print("\n[bold cyan]Inductive Coding Analysis[/bold cyan]")
     console.print(f"Mode: [green]{analysis_mode.value}[/green]")
+    console.print(f"Hierarchy Depth: [green]{hierarchy.value}[/green]")
     console.print(f"Input: [blue]{input_dir}[/blue]")
     console.print(f"Output: [blue]{output_dir}[/blue]")
     
@@ -103,6 +170,7 @@ def analyze(
                     user_context=user_context,
                     output_dir=output_dir,
                     existing_code_book=code_book_file,
+                    hierarchy_depth=hierarchy,
                 )
             )
             
@@ -112,16 +180,7 @@ def analyze(
         console.print("\n[bold green]✓ Analysis complete![/bold green]\n")
         
         # Show code book
-        console.print("[bold]Code Book:[/bold]")
-        table = Table(show_header=True, header_style="bold magenta")
-        table.add_column("Code", style="cyan")
-        table.add_column("Description")
-        table.add_column("Criteria")
-        
-        for code in result.code_book.codes:
-            table.add_row(code.name, code.description, code.criteria)
-        
-        console.print(table)
+        display_code_book(result.code_book)
         console.print()
         
         # Show summary
@@ -129,7 +188,7 @@ def analyze(
             console.print(f"[bold]Total coded sentences:[/bold] {len(result.sentence_codes)}")
             
             # Count by code
-            code_counts = {}
+            code_counts: dict[str, int] = {}
             for sc in result.sentence_codes:
                 code_counts[sc.code.name] = code_counts.get(sc.code.name, 0) + 1
             
@@ -140,12 +199,12 @@ def analyze(
             console.print(f"[bold]Total coded documents:[/bold] {len(set(dc.file_path for dc in result.document_codes))}")
             
             # Count by code
-            code_counts = {}
+            code_counts_doc: dict[str, int] = {}
             for dc in result.document_codes:
-                code_counts[dc.code.name] = code_counts.get(dc.code.name, 0) + 1
+                code_counts_doc[dc.code.name] = code_counts_doc.get(dc.code.name, 0) + 1
             
             console.print("\n[bold]Documents per code:[/bold]")
-            for code_name, count in sorted(code_counts.items()):
+            for code_name, count in sorted(code_counts_doc.items()):
                 console.print(f"  {code_name}: {count}")
         
         console.print(f"\n[bold]Results saved to:[/bold] [blue]{output_dir}[/blue]")
@@ -172,6 +231,7 @@ def generate_codebook(
     input_dir: Path = typer.Option(..., "--input-dir", "-i", help="Directory containing documents to analyze"),
     prompt_file: Optional[Path] = typer.Option(None, "--prompt-file", "-p", help="File containing user prompt/context"),
     output_file: Path = typer.Option("./code_book.json", "--output-file", "-o", help="Output file for code book"),
+    hierarchy_depth: str = typer.Option("1", "--hierarchy-depth", "-d", help="Code hierarchy depth: 1 (flat), 2 (two-level), or arbitrary (unlimited)"),
 ) -> None:
     """Generate code book only (Round 1 only) without applying codes."""
     
@@ -180,6 +240,13 @@ def generate_codebook(
         analysis_mode = AnalysisMode(mode.lower())
     except ValueError:
         console.print(f"[red]Error:[/red] Invalid mode '{mode}'. Must be 'coding' or 'categorization'")
+        sys.exit(1)
+    
+    # Validate hierarchy depth
+    try:
+        hierarchy = HierarchyDepth(hierarchy_depth.lower())
+    except ValueError:
+        console.print(f"[red]Error:[/red] Invalid hierarchy depth '{hierarchy_depth}'. Must be '1', '2', or 'arbitrary'")
         sys.exit(1)
     
     # Validate input directory
@@ -203,6 +270,7 @@ def generate_codebook(
     
     console.print("\n[bold cyan]Code Book Generation (Round 1 Only)[/bold cyan]")
     console.print(f"Mode: [green]{analysis_mode.value}[/green]")
+    console.print(f"Hierarchy Depth: [green]{hierarchy.value}[/green]")
     console.print(f"Input: [blue]{input_dir}[/blue]")
     console.print(f"Output: [blue]{output_file}[/blue]")
     console.print()
@@ -229,6 +297,7 @@ def generate_codebook(
                     input_dir=input_dir,
                     user_context=user_context,
                     output_path=output_file,
+                    hierarchy_depth=hierarchy,
                 )
             )
             
@@ -238,16 +307,7 @@ def generate_codebook(
         console.print("\n[bold green]✓ Code book generated![/bold green]\n")
         
         # Show code book
-        console.print("[bold]Code Book:[/bold]")
-        table = Table(show_header=True, header_style="bold magenta")
-        table.add_column("Code", style="cyan")
-        table.add_column("Description")
-        table.add_column("Criteria")
-        
-        for code in code_book.codes:
-            table.add_row(code.name, code.description, code.criteria)
-        
-        console.print(table)
+        display_code_book(code_book)
         console.print()
         
         console.print(f"[bold]Code book saved to:[/bold] [blue]{output_file}[/blue]")

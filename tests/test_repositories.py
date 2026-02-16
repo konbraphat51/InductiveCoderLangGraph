@@ -142,3 +142,61 @@ def test_save_categorization_result(temp_dir: Path) -> None:
     
     assert data["mode"] == "categorization"
     assert "Category1" in data["codes_by_name"]
+
+
+def test_save_and_load_hierarchical_code_book(temp_dir: Path) -> None:
+    """Test saving and loading a hierarchical code book."""
+    from inductive_coder.domain.entities import HierarchyDepth
+    
+    # Create hierarchical code book
+    code_book = CodeBook(
+        mode=AnalysisMode.CODING,
+        context="Test hierarchical context",
+        hierarchy_depth=HierarchyDepth.TWO_LEVEL
+    )
+    
+    # Add parent and child codes
+    parent = Code(name="Parent", description="Parent code", criteria="Parent criteria")
+    child = Code(
+        name="Child",
+        description="Child code",
+        criteria="Child criteria",
+        parent_code_name="Parent"
+    )
+    
+    code_book.add_code(parent)
+    code_book.add_code(child)
+    
+    # Save
+    repo = JSONCodeBookRepository()
+    save_path = temp_dir / "hierarchical_codebook.json"
+    repo.save_code_book(code_book, save_path)
+    
+    assert save_path.exists()
+    
+    # Verify JSON structure
+    with save_path.open("r") as f:
+        data = json.load(f)
+    
+    assert data["hierarchy_depth"] == "2"
+    assert len(data["codes"]) == 2
+    assert data["codes"][0]["parent_code_name"] is None
+    assert data["codes"][1]["parent_code_name"] == "Parent"
+    
+    # Load
+    loaded = repo.load_code_book(save_path)
+    
+    assert loaded.mode == AnalysisMode.CODING
+    assert loaded.context == "Test hierarchical context"
+    assert loaded.hierarchy_depth == HierarchyDepth.TWO_LEVEL
+    assert len(loaded.codes) == 2
+    
+    # Verify hierarchy
+    root_codes = loaded.get_root_codes()
+    assert len(root_codes) == 1
+    assert root_codes[0].name == "Parent"
+    
+    children = loaded.get_children("Parent")
+    assert len(children) == 1
+    assert children[0].name == "Child"
+    assert children[0].parent_code_name == "Parent"

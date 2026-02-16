@@ -4,7 +4,7 @@ from typing import Any
 
 from langgraph.graph import StateGraph, END
 
-from inductive_coder.domain.entities import AnalysisMode, CodeBook, Document
+from inductive_coder.domain.entities import AnalysisMode, CodeBook, Document, HierarchyDepth
 from inductive_coder.application.reading_workflow.state import ReadingStateDict
 from inductive_coder.application.reading_workflow.nodes import (
     read_document_node,
@@ -16,7 +16,7 @@ from inductive_coder.application.reading_workflow.edges import should_continue_r
 class ReadingWorkflow:
     """Wrapper for Reading workflow."""
     
-    def __init__(self, graph: StateGraph) -> None:
+    def __init__(self, graph: StateGraph[ReadingStateDict]) -> None:
         self.app = graph.compile()
     
     async def execute(
@@ -24,6 +24,7 @@ class ReadingWorkflow:
         mode: AnalysisMode,
         documents: list[Document],
         user_context: str,
+        hierarchy_depth: HierarchyDepth = HierarchyDepth.FLAT,
     ) -> CodeBook:
         """Execute Reading workflow."""
         initial_state: ReadingStateDict = {
@@ -33,6 +34,7 @@ class ReadingWorkflow:
             "notes": "",  # Start with empty long-term memory
             "current_doc_index": 0,
             "code_book": None,
+            "hierarchy_depth": hierarchy_depth,
         }
         
         result = await self.app.ainvoke(initial_state)
@@ -43,7 +45,7 @@ def create_reading_workflow() -> ReadingWorkflow:
     """Create the Reading workflow graph."""
     
     # Build the graph
-    workflow = StateGraph(ReadingStateDict)
+    workflow = StateGraph[ReadingStateDict](ReadingStateDict)
     
     # Add nodes
     workflow.add_node("read_document", read_document_node)

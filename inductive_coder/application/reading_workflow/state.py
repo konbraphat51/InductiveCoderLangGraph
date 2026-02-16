@@ -6,6 +6,7 @@ from inductive_coder.domain.entities import (
     AnalysisMode,
     CodeBook,
     Document,
+    HierarchyDepth,
 )
 
 
@@ -17,3 +18,4 @@ class ReadingStateDict(TypedDict):
     notes: str  # Long-term memory as a single editable text
     current_doc_index: int
     code_book: CodeBook | None
+    hierarchy_depth: HierarchyDepth

@@ -12,6 +12,7 @@ from inductive_coder.domain.entities import (
     Document,
     DocumentCode,
     SentenceCode,
+    HierarchyDepth,
 )
 from inductive_coder.domain.repositories import (
     IAnalysisResultRepository,
@@ -66,11 +67,13 @@ class JSONCodeBookRepository(ICodeBookRepository):
         data = {
             "mode": code_book.mode.value,
             "context": code_book.context,
+            "hierarchy_depth": code_book.hierarchy_depth.value,
             "codes": [
                 {
                     "name": code.name,
                     "description": code.description,
                     "criteria": code.criteria,
+                    "parent_code_name": code.parent_code_name,
                 }
                 for code in code_book.codes
             ],
@@ -92,14 +95,16 @@ class JSONCodeBookRepository(ICodeBookRepository):
                 name=c["name"],
                 description=c["description"],
                 criteria=c["criteria"],
+                parent_code_name=c.get("parent_code_name"),
             )
             for c in data["codes"]
         ]
         
         mode = AnalysisMode(data["mode"])
         context = data.get("context", "")
+        hierarchy_depth = HierarchyDepth(data.get("hierarchy_depth", "1"))
         
-        return CodeBook(codes=codes, mode=mode, context=context)
+        return CodeBook(codes=codes, mode=mode, context=context, hierarchy_depth=hierarchy_depth)
 
 
 class JSONAnalysisResultRepository(IAnalysisResultRepository):
@@ -244,12 +249,12 @@ class JSONAnalysisResultRepository(IAnalysisResultRepository):
             lines.append(f"\nTotal coded documents: {len(set(dc.file_path for dc in result.document_codes))}")
             
             # Count by code
-            code_counts: dict[str, int] = {}
+            code_counts_doc: dict[str, int] = {}
             for dc in result.document_codes:
-                code_counts[dc.code.name] = code_counts.get(dc.code.name, 0) + 1
+                code_counts_doc[dc.code.name] = code_counts_doc.get(dc.code.name, 0) + 1
             
             lines.append("\nDocuments per code:")
-            for code_name, count in sorted(code_counts.items()):
+            for code_name, count in sorted(code_counts_doc.items()):
                 lines.append(f"  {code_name}: {count}")
         
         lines.append("\n" + "=" * 80)
