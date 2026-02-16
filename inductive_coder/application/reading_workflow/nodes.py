@@ -20,6 +20,7 @@ class CodeSchema(BaseModel):
     name: str = Field(description="Short, descriptive name for the code")
     description: str = Field(description="What this code represents")
     criteria: str = Field(description="When to apply this code")
+    parent_code_name: str | None = Field(default=None, description="Name of parent code if this is a sub-code (hierarchical structure)")
 
 
 class CodeBookSchema(BaseModel):
@@ -66,6 +67,7 @@ async def create_codebook_node(state: ReadingStateDict) -> dict[str, Any]:
     notes = state["notes"]
     user_context = state["user_context"]
     mode = state["mode"]
+    hierarchy_depth = state["hierarchy_depth"]
     
     llm = get_llm_client()
     
@@ -73,7 +75,8 @@ async def create_codebook_node(state: ReadingStateDict) -> dict[str, Any]:
     system_prompt, user_prompt = get_create_codebook_prompts(
         mode=mode.value,
         user_context=user_context,
-        all_notes=notes
+        all_notes=notes,
+        hierarchy_depth=hierarchy_depth,
     )
 
     response = await llm.generate_structured(
@@ -84,10 +87,15 @@ async def create_codebook_node(state: ReadingStateDict) -> dict[str, Any]:
     
     # Convert to domain entities
     codes = [
-        Code(name=c["name"], description=c["description"], criteria=c["criteria"])
+        Code(
+            name=c["name"], 
+            description=c["description"], 
+            criteria=c["criteria"],
+            parent_code_name=c.get("parent_code_name")
+        )
         for c in response["codes"]
     ]
     
-    code_book = CodeBook(codes=codes, mode=mode, context=user_context)
+    code_book = CodeBook(codes=codes, mode=mode, context=user_context, hierarchy_depth=hierarchy_depth)
     
     return {"code_book": code_book}

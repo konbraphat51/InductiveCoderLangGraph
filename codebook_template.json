@@ -1,21 +1,25 @@
 {
   "mode": "coding",
   "context": "Description of your research question and context here",
+  "hierarchy_depth": "1",
   "codes": [
     {
       "name": "Code Name 1",
       "description": "Brief description of what this code represents",
-      "criteria": "Clear criteria for when to apply this code"
+      "criteria": "Clear criteria for when to apply this code",
+      "parent_code_name": null
     },
     {
       "name": "Code Name 2",
       "description": "Brief description of what this code represents",
-      "criteria": "Clear criteria for when to apply this code"
+      "criteria": "Clear criteria for when to apply this code",
+      "parent_code_name": null
     },
     {
       "name": "Code Name 3",
       "description": "Brief description of what this code represents",
-      "criteria": "Clear criteria for when to apply this code"
+      "criteria": "Clear criteria for when to apply this code",
+      "parent_code_name": null
     }
   ]
 }

@@ -8,6 +8,7 @@ from inductive_coder.domain.entities import (
     AnalysisResult,
     CodeBook,
     Document,
+    HierarchyDepth,
 )
 from inductive_coder.domain.repositories import (
     IDocumentRepository,
@@ -36,6 +37,7 @@ class CodeBookGenerationUseCase:
         input_dir: Path,
         user_context: str,
         output_path: Path,
+        hierarchy_depth: HierarchyDepth = HierarchyDepth.FLAT,
     ) -> CodeBook:
         """
         Execute Round 1 only to generate a code book.
@@ -45,6 +47,7 @@ class CodeBookGenerationUseCase:
             input_dir: Directory containing documents to analyze
             user_context: User's research question and context
             output_path: Path to save the code book
+            hierarchy_depth: Hierarchy depth for code structure
         
         Returns:
             Generated CodeBook
@@ -61,6 +64,7 @@ class CodeBookGenerationUseCase:
             mode=mode,
             documents=documents,
             user_context=user_context,
+            hierarchy_depth=hierarchy_depth,
         )
         
         # Save code book
@@ -89,6 +93,7 @@ class AnalysisUseCase:
         user_context: str,
         output_dir: Path,
         existing_code_book: Optional[Path] = None,
+        hierarchy_depth: HierarchyDepth = HierarchyDepth.FLAT,
     ) -> AnalysisResult:
         """
         Execute the analysis workflow.
@@ -99,6 +104,7 @@ class AnalysisUseCase:
             user_context: User's research question and context
             output_dir: Directory to save results
             existing_code_book: Optional path to existing code book (skip round 1)
+            hierarchy_depth: Hierarchy depth for code structure
         
         Returns:
             AnalysisResult with codes applied
@@ -118,6 +124,7 @@ class AnalysisUseCase:
                 mode=mode,
                 documents=documents,
                 user_context=user_context,
+                hierarchy_depth=hierarchy_depth,
             )
             
             # Save code book

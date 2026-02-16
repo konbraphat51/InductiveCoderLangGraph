@@ -4,7 +4,7 @@ from typing import Any
 
 from langgraph.graph import StateGraph, END
 
-from inductive_coder.domain.entities import AnalysisMode, CodeBook, Document
+from inductive_coder.domain.entities import AnalysisMode, CodeBook, Document, HierarchyDepth
 from inductive_coder.application.reading_workflow.state import ReadingStateDict
 from inductive_coder.application.reading_workflow.nodes import (
     read_document_node,
@@ -24,6 +24,7 @@ class ReadingWorkflow:
         mode: AnalysisMode,
         documents: list[Document],
         user_context: str,
+        hierarchy_depth: HierarchyDepth = HierarchyDepth.FLAT,
     ) -> CodeBook:
         """Execute Reading workflow."""
         initial_state: ReadingStateDict = {
@@ -33,6 +34,7 @@ class ReadingWorkflow:
             "notes": "",  # Start with empty long-term memory
             "current_doc_index": 0,
             "code_book": None,
+            "hierarchy_depth": hierarchy_depth,
         }
         
         result = await self.app.ainvoke(initial_state)
