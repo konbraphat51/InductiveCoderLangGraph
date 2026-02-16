@@ -47,6 +47,13 @@ Create a `.env` file in the project root:
 ```env
 OPENAI_API_KEY=your_api_key_here
 OPENAI_MODEL=gpt-4-turbo-preview
+
+# Optional: per-node model overrides
+READ_DOCUMENT_MODEL=gpt-3.5-turbo
+CREATE_CODEBOOK_MODEL=gpt-4-turbo-preview
+DECIDE_CHUNKING_MODEL=gpt-3.5-turbo
+CODE_CHUNK_MODEL=gpt-4-turbo-preview
+CATEGORIZE_DOCUMENT_MODEL=gpt-4-turbo-preview
 ```
 
 ## Usage

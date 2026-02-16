@@ -2,7 +2,7 @@
 
 import json
 import os
-from typing import Optional, Any
+from typing import Any
 
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
@@ -33,7 +33,7 @@ class OpenAILLMClient(ILLMClient):
     async def generate(
         self, 
         prompt: str, 
-        system_prompt: Optional[str] = None
+        system_prompt: str | None = None
     ) -> str:
         """Generate a response from the LLM."""
         messages = []
@@ -50,7 +50,7 @@ class OpenAILLMClient(ILLMClient):
         self, 
         prompt: str, 
         schema: type[BaseModel],
-        system_prompt: Optional[str] = None
+        system_prompt: str | None = None
     ) -> dict[str, Any]:
         """Generate a structured response matching the given schema."""
         # Use structured output with Pydantic schema
@@ -71,22 +71,34 @@ class OpenAILLMClient(ILLMClient):
         return response
 
 
-# Global LLM client instance
-_llm_client: Optional[OpenAILLMClient] = None
+# Global LLM client instances keyed by model name
+_llm_clients: dict[str, OpenAILLMClient] = {}
 
 
-def get_llm_client() -> OpenAILLMClient:
-    """Get or create the global LLM client instance."""
-    global _llm_client
-    
-    if _llm_client is None:
-        model = os.getenv("OPENAI_MODEL", "gpt-4-turbo-preview")
-        _llm_client = OpenAILLMClient(model=model)
-    
-    return _llm_client
+def get_node_model(node_model_env_key: str) -> str:
+    """Resolve model name for a node-specific environment key.
+
+    Falls back to OPENAI_MODEL and then a built-in default model.
+    """
+    return (
+        os.getenv(node_model_env_key)
+        or os.getenv(node_model_env_key.lower())
+        or os.getenv("OPENAI_MODEL")
+        or "gpt-4-turbo-preview"
+    )
 
 
-def set_llm_client(client: OpenAILLMClient) -> None:
-    """Set the global LLM client instance."""
-    global _llm_client
-    _llm_client = client
+def get_llm_client(model: str | None = None) -> OpenAILLMClient:
+    """Get or create an LLM client instance for the given model."""
+    resolved_model = model or os.getenv("OPENAI_MODEL", "gpt-4-turbo-preview")
+
+    if resolved_model not in _llm_clients:
+        _llm_clients[resolved_model] = OpenAILLMClient(model=resolved_model)
+
+    return _llm_clients[resolved_model]
+
+
+def set_llm_client(client: OpenAILLMClient, model: str | None = None) -> None:
+    """Set an LLM client instance for a model key."""
+    model_key = model or client.model
+    _llm_clients[model_key] = client

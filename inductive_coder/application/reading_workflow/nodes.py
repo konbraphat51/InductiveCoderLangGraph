@@ -5,7 +5,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from inductive_coder.domain.entities import Code, CodeBook
-from inductive_coder.infrastructure.llm_client import get_llm_client
+from inductive_coder.infrastructure.llm_client import get_llm_client, get_node_model
 from inductive_coder.application.reading_workflow.prompts import (
     get_read_document_prompts,
     get_create_codebook_prompts,
@@ -43,7 +43,7 @@ async def read_document_node(state: ReadingStateDict) -> dict[str, Any]:
     mode = state["mode"]
     current_notes = state["notes"]
     
-    llm = get_llm_client()
+    llm = get_llm_client(model=get_node_model("READ_DOCUMENT_MODEL"))
     
     # Get system and user prompts (with current notes context)
     system_prompt, user_prompt = get_read_document_prompts(
@@ -69,7 +69,7 @@ async def create_codebook_node(state: ReadingStateDict) -> dict[str, Any]:
     mode = state["mode"]
     hierarchy_depth = state["hierarchy_depth"]
     
-    llm = get_llm_client()
+    llm = get_llm_client(model=get_node_model("CREATE_CODEBOOK_MODEL"))
     
     # Get system and user prompts
     system_prompt, user_prompt = get_create_codebook_prompts(

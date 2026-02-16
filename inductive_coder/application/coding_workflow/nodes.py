@@ -5,7 +5,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from inductive_coder.domain.entities import Chunk, SentenceCode
-from inductive_coder.infrastructure.llm_client import get_llm_client
+from inductive_coder.infrastructure.llm_client import get_llm_client, get_node_model
 from inductive_coder.application.coding_workflow.prompts import (
     get_chunking_decision_prompts,
     get_code_chunk_prompts,
@@ -60,7 +60,7 @@ async def decide_chunking_node(state: CodingStateDict) -> dict[str, Any]:
     doc = documents[current_idx]
     code_book = state["code_book"]
     
-    llm = get_llm_client()
+    llm = get_llm_client(model=get_node_model("DECIDE_CHUNKING_MODEL"))
     
     # Create sentence list for the prompt
     sentence_list = "\n".join([f"{s.id}: {s.text}" for s in doc.sentences])
@@ -142,7 +142,7 @@ async def code_chunk_node(state: CodingStateDict) -> dict[str, Any]:
     if not chunk.should_code:
         return {"current_chunk_index": current_chunk_idx + 1}
     
-    llm = get_llm_client()
+    llm = get_llm_client(model=get_node_model("CODE_CHUNK_MODEL"))
     
     # Create prompt
     sentence_list = "\n".join([f"{s.id}: {s.text}" for s in chunk.sentences])

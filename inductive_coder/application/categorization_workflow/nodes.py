@@ -5,7 +5,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from inductive_coder.domain.entities import DocumentCode
-from inductive_coder.infrastructure.llm_client import get_llm_client
+from inductive_coder.infrastructure.llm_client import get_llm_client, get_node_model
 from inductive_coder.application.categorization_workflow.prompts import get_categorize_document_prompts
 from inductive_coder.application.categorization_workflow.state import CategorizationStateDict
 
@@ -34,7 +34,7 @@ async def categorize_document_node(state: CategorizationStateDict) -> dict[str, 
     doc = documents[current_idx]
     code_book = state["code_book"]
     
-    llm = get_llm_client()
+    llm = get_llm_client(model=get_node_model("CATEGORIZE_DOCUMENT_MODEL"))
     
     # Create prompt
     code_list = "\n".join([
