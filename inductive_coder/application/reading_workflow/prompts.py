@@ -1,9 +1,15 @@
 """Prompt templates for the Reading workflow."""
 
-from typing import Tuple
+from typing import Tuple, Optional
 
 
-def get_read_document_prompts(mode: str, user_context: str, doc_name: str, doc_content: str) -> Tuple[str, str]:
+def get_read_document_prompts(
+    mode: str, 
+    user_context: str, 
+    doc_name: str, 
+    doc_content: str,
+    current_notes: Optional[str] = None
+) -> Tuple[str, str]:
     """Get system and user prompts for reading and taking notes on a document.
     
     Args:
@@ -11,6 +17,7 @@ def get_read_document_prompts(mode: str, user_context: str, doc_name: str, doc_c
         user_context: User's research question and context
         doc_name: Name of the document being read
         doc_content: Full content of the document
+        current_notes: Optional current notes (long-term memory) to include in context
     
     Returns:
         Tuple of (system_prompt, user_prompt)
@@ -23,6 +30,10 @@ Your task is to read documents carefully and take notes about:
 3. Potential codes that could be used to categorize this content
 
 Provide your notes in a clear, structured format. These notes will serve as your long-term memory for synthesizing a code book later."""
+    
+    # Add current notes context if exists
+    if current_notes:
+        system_prompt += f"\n\nYour current notes (long-term memory):\n{current_notes}\n\nYou can update or expand these notes based on the new document."
     
     user_prompt = f"""Research question and context:
 {user_context}

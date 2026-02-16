@@ -44,17 +44,14 @@ async def read_document_node(state: ReadingStateDict) -> dict[str, Any]:
     
     llm = get_llm_client()
     
-    # Get system and user prompts
+    # Get system and user prompts (with current notes context)
     system_prompt, user_prompt = get_read_document_prompts(
         mode=mode.value,
         user_context=user_context,
         doc_name=doc.path.name,
-        doc_content=doc.content
+        doc_content=doc.content,
+        current_notes=current_notes
     )
-    
-    # Add current notes context if exists
-    if current_notes:
-        system_prompt += f"\n\nYour current notes (long-term memory):\n{current_notes}\n\nYou can update or expand these notes based on the new document."
 
     response = await llm.generate(user_prompt, system_prompt=system_prompt)
     
