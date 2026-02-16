@@ -54,7 +54,26 @@ CREATE_CODEBOOK_MODEL=gpt-4-turbo-preview
 DECIDE_CHUNKING_MODEL=gpt-3.5-turbo
 CODE_CHUNK_MODEL=gpt-4-turbo-preview
 CATEGORIZE_DOCUMENT_MODEL=gpt-4-turbo-preview
+
+# Parallel Processing Configuration
+# Maximum number of concurrent API requests (default: 5)
+# Lower this value if you encounter API rate limit errors
+MAX_CONCURRENT_REQUESTS=5
 ```
+
+### Performance Optimization
+
+The tool uses **parallel processing** to analyze multiple documents simultaneously:
+
+- **Automatic Parallelization**: Documents are processed in parallel during both Round 2 (coding/categorization)
+- **Rate Limiting**: Configurable `MAX_CONCURRENT_REQUESTS` prevents API throttling
+- **Speed Improvements**: Processing time scales with document count, not linearly
+  - Example: 10 documents might take ~2-3x the time of 1 document (instead of 10x)
+
+**Tuning Concurrency**:
+- **Higher values** (e.g., 10): Faster processing, but may hit API rate limits
+- **Lower values** (e.g., 2-3): Slower but more stable for large batches
+- **Default (5)**: Balanced for most use cases
 
 ## Usage
 
