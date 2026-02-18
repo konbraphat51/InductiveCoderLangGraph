@@ -5,9 +5,14 @@ from typing import Any
 from langgraph.graph import StateGraph, END
 
 from inductive_coder.domain.entities import CodeBook, Document, DocumentCode
-from inductive_coder.application.categorization_workflow.state import CategorizationStateDict
-from inductive_coder.application.categorization_workflow.nodes import categorize_document_node
-from inductive_coder.application.categorization_workflow.edges import should_continue_categorization
+from inductive_coder.application.categorization_workflow.state import (
+    CategorizationStateDict,
+    SingleDocCategorizationState,
+)
+from inductive_coder.application.categorization_workflow.nodes import (
+    fan_out_documents,
+    categorize_single_document,
+)
 
 
 class CategorizationWorkflow:
@@ -25,7 +30,6 @@ class CategorizationWorkflow:
         initial_state: CategorizationStateDict = {
             "documents": documents,
             "code_book": code_book,
-            "current_doc_index": 0,
             "document_codes": [],
         }
         
@@ -40,19 +44,14 @@ def create_categorization_workflow() -> CategorizationWorkflow:
     workflow = StateGraph(CategorizationStateDict)
     
     # Add nodes
-    workflow.add_node("categorize_document", categorize_document_node)
+    workflow.add_node("fan_out", fan_out_documents)
+    workflow.add_node("categorize_single_document", categorize_single_document)
     
     # Set entry point
-    workflow.set_entry_point("categorize_document")
+    workflow.set_entry_point("fan_out")
     
-    # Add edges
-    workflow.add_conditional_edges(
-        "categorize_document",
-        should_continue_categorization,
-        {
-            "categorize_document": "categorize_document",
-            END: END,
-        }
-    )
+    # Add edges - fan_out sends to categorize_single_document in parallel
+    workflow.add_conditional_edges("fan_out", lambda x: x)
+    workflow.add_edge("categorize_single_document", END)
     
     return CategorizationWorkflow(workflow)

@@ -14,5 +14,11 @@ class CategorizationStateDict(TypedDict):
     """State dict for Categorization workflow (LangGraph state)."""
     documents: list[Document]
     code_book: CodeBook
-    current_doc_index: int
+    document_codes: Annotated[list[DocumentCode], operator.add]
+
+
+class SingleDocCategorizationState(TypedDict):
+    """State for processing a single document in parallel."""
+    document: Document
+    code_book: CodeBook
     document_codes: Annotated[list[DocumentCode], operator.add]

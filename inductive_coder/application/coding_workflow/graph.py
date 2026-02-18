@@ -5,15 +5,17 @@ from typing import Any
 from langgraph.graph import StateGraph, END
 
 from inductive_coder.domain.entities import CodeBook, Document, SentenceCode
-from inductive_coder.application.coding_workflow.state import CodingStateDict
+from inductive_coder.application.coding_workflow.state import (
+    CodingStateDict,
+    SingleDocCodingState,
+)
 from inductive_coder.application.coding_workflow.nodes import (
+    fan_out_documents,
     decide_chunking_node,
     code_chunk_node,
-    next_document_node,
 )
 from inductive_coder.application.coding_workflow.edges import (
     should_continue_coding_chunks,
-    should_continue_coding_documents,
 )
 
 
@@ -32,10 +34,6 @@ class CodingWorkflow:
         initial_state: CodingStateDict = {
             "documents": documents,
             "code_book": code_book,
-            "current_doc_index": 0,
-            "current_doc": None,
-            "chunks": [],
-            "current_chunk_index": 0,
             "sentence_codes": [],
         }
         
@@ -50,28 +48,22 @@ def create_coding_workflow() -> CodingWorkflow:
     workflow = StateGraph(CodingStateDict)
     
     # Add nodes
+    workflow.add_node("fan_out", fan_out_documents)
     workflow.add_node("decide_chunking", decide_chunking_node)
     workflow.add_node("code_chunk", code_chunk_node)
-    workflow.add_node("next_document", next_document_node)
     
     # Set entry point
-    workflow.set_entry_point("decide_chunking")
+    workflow.set_entry_point("fan_out")
     
-    # Add edges
+    # Add edges - fan_out sends to decide_chunking in parallel for each document
+    workflow.add_conditional_edges("fan_out", lambda x: x)
+    
+    # Within each document, process chunks sequentially
     workflow.add_conditional_edges(
         "code_chunk",
         should_continue_coding_chunks,
         {
             "code_chunk": "code_chunk",
-            "next_document": "next_document",
-        }
-    )
-    
-    workflow.add_conditional_edges(
-        "next_document",
-        should_continue_coding_documents,
-        {
-            "decide_chunking": "decide_chunking",
             END: END,
         }
     )

@@ -3,11 +3,15 @@
 from typing import Any
 
 from pydantic import BaseModel, Field
+from langgraph.types import Send
 
 from inductive_coder.domain.entities import DocumentCode
 from inductive_coder.infrastructure.llm_client import get_llm_client, get_node_model
 from inductive_coder.application.categorization_workflow.prompts import get_categorize_document_prompts
-from inductive_coder.application.categorization_workflow.state import CategorizationStateDict
+from inductive_coder.application.categorization_workflow.state import (
+    CategorizationStateDict,
+    SingleDocCategorizationState,
+)
 
 
 # Pydantic schemas for structured output
@@ -23,15 +27,26 @@ class DocumentCodeSchema(BaseModel):
 
 # Node functions
 
-async def categorize_document_node(state: CategorizationStateDict) -> dict[str, Any]:
+def fan_out_documents(state: CategorizationStateDict) -> list[Send]:
+    """Fan out to process each document in parallel."""
+    sends = []
+    for doc in state["documents"]:
+        sends.append(
+            Send(
+                "categorize_single_document",
+                {
+                    "document": doc,
+                    "code_book": state["code_book"],
+                    "document_codes": [],
+                }
+            )
+        )
+    return sends
+
+
+async def categorize_single_document(state: SingleDocCategorizationState) -> dict[str, Any]:
     """Categorize a single document."""
-    current_idx = state["current_doc_index"]
-    documents = state["documents"]
-    
-    if current_idx >= len(documents):
-        return {"current_doc_index": current_idx}
-    
-    doc = documents[current_idx]
+    doc = state["document"]
     code_book = state["code_book"]
     
     llm = get_llm_client(model=get_node_model("CATEGORIZE_DOCUMENT_MODEL"))
@@ -71,5 +86,4 @@ async def categorize_document_node(state: CategorizationStateDict) -> dict[str, 
     
     return {
         "document_codes": document_codes,
-        "current_doc_index": current_idx + 1,
     }

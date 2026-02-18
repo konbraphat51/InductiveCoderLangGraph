@@ -3,6 +3,7 @@
 from typing import Any
 
 from pydantic import BaseModel, Field
+from langgraph.types import Send
 
 from inductive_coder.domain.entities import Chunk, SentenceCode
 from inductive_coder.infrastructure.llm_client import get_llm_client, get_node_model
@@ -10,7 +11,10 @@ from inductive_coder.application.coding_workflow.prompts import (
     get_chunking_decision_prompts,
     get_code_chunk_prompts,
 )
-from inductive_coder.application.coding_workflow.state import CodingStateDict
+from inductive_coder.application.coding_workflow.state import (
+    CodingStateDict,
+    SingleDocCodingState,
+)
 
 
 # Pydantic schemas for structured output
@@ -45,19 +49,28 @@ class SentenceCodesSchema(BaseModel):
 
 # Node functions
 
-async def decide_chunking_node(state: CodingStateDict) -> dict[str, Any]:
+def fan_out_documents(state: CodingStateDict) -> list[Send]:
+    """Fan out to process each document in parallel."""
+    sends = []
+    for doc in state["documents"]:
+        sends.append(
+            Send(
+                "decide_chunking",
+                {
+                    "document": doc,
+                    "code_book": state["code_book"],
+                    "chunks": [],
+                    "current_chunk_index": 0,
+                    "sentence_codes": [],
+                }
+            )
+        )
+    return sends
+
+
+async def decide_chunking_node(state: SingleDocCodingState) -> dict[str, Any]:
     """Decide how to chunk the current document."""
-    current_idx = state["current_doc_index"]
-    documents = state["documents"]
-    
-    if current_idx >= len(documents):
-        return {
-            "current_doc": None,
-            "chunks": [],
-            "current_chunk_index": 0,
-        }
-    
-    doc = documents[current_idx]
+    doc = state["document"]
     code_book = state["code_book"]
     
     llm = get_llm_client(model=get_node_model("DECIDE_CHUNKING_MODEL"))
@@ -121,13 +134,12 @@ async def decide_chunking_node(state: CodingStateDict) -> dict[str, Any]:
                 )
     
     return {
-        "current_doc": doc,
         "chunks": chunks,
         "current_chunk_index": 0,
     }
 
 
-async def code_chunk_node(state: CodingStateDict) -> dict[str, Any]:
+async def code_chunk_node(state: SingleDocCodingState) -> dict[str, Any]:
     """Apply codes to a chunk of sentences."""
     chunks = state["chunks"]
     current_chunk_idx = state["current_chunk_index"]
@@ -180,8 +192,3 @@ async def code_chunk_node(state: CodingStateDict) -> dict[str, Any]:
         "sentence_codes": sentence_codes,
         "current_chunk_index": current_chunk_idx + 1,
     }
-
-
-async def next_document_node(state: CodingStateDict) -> dict[str, Any]:
-    """Move to next document."""
-    return {"current_doc_index": state["current_doc_index"] + 1}
