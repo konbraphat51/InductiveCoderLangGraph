@@ -75,3 +75,14 @@ class ILLMClient(ABC):
     ) -> dict:
         """Generate a structured response matching the given schema."""
         pass
+    
+    @abstractmethod
+    async def generate_with_tools(
+        self,
+        prompt: str,
+        tools: list,
+        system_prompt: Optional[str] = None,
+        max_iterations: int = 10
+    ) -> str:
+        """Generate a response with tool calling capabilities."""
+        pass

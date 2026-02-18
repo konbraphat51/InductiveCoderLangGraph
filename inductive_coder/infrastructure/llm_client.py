@@ -2,11 +2,12 @@
 
 import json
 import os
-from typing import Any
+from typing import Any, Callable
 
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.tools import tool
 from pydantic import BaseModel
 
 from inductive_coder.domain.repositories import ILLMClient
@@ -69,6 +70,77 @@ class OpenAILLMClient(ILLMClient):
         if isinstance(response, BaseModel):
             return response.model_dump()
         return response
+    
+    async def generate_with_tools(
+        self,
+        prompt: str,
+        tools: list[Callable],
+        system_prompt: str | None = None,
+        max_iterations: int = 10
+    ) -> str:
+        """Generate a response with tool calling capabilities.
+        
+        Args:
+            prompt: The user prompt
+            tools: List of tool functions that LLM can call
+            system_prompt: Optional system prompt
+            max_iterations: Maximum number of tool calling iterations
+            
+        Returns:
+            The final response from the LLM
+        """
+        # Bind tools to the LLM
+        llm_with_tools = self.llm.bind_tools(tools)
+        
+        messages = []
+        
+        if system_prompt:
+            messages.append(SystemMessage(content=system_prompt))
+        
+        messages.append(HumanMessage(content=prompt))
+        
+        # Tool calling loop
+        for _ in range(max_iterations):
+            response = await llm_with_tools.ainvoke(messages)
+            
+            # If no tool calls, return the response
+            if not response.tool_calls:
+                return response.content
+            
+            # Add the response to messages
+            messages.append(response)
+            
+            # Process tool calls
+            for tool_call in response.tool_calls:
+                tool_result = await self._execute_tool_call(tool_call, tools)
+                from langchain_core.messages import ToolMessage
+                messages.append(ToolMessage(
+                    tool_call_id=tool_call["id"],
+                    content=tool_result
+                ))
+        
+        # Return final response after max iterations
+        return response.content
+    
+    async def _execute_tool_call(self, tool_call: dict, tools: list[Callable]) -> str:
+        """Execute a tool call and return the result."""
+        tool_name = tool_call["name"]
+        tool_args = tool_call.get("args", {})
+        
+        # Find the matching tool
+        for t in tools:
+            if hasattr(t, "name"):
+                if t.name == tool_name:
+                    try:
+                        result = t(**tool_args)
+                        # Handle async tools
+                        if hasattr(result, '__await__'):
+                            result = await result
+                        return str(result)
+                    except Exception as e:
+                        return f"Error calling tool {tool_name}: {str(e)}"
+        
+        return f"Tool {tool_name} not found"
 
 
 # Global LLM client instances keyed by model name
