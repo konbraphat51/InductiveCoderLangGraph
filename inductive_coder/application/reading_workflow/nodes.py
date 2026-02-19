@@ -38,6 +38,7 @@ async def read_document_node(state: ReadingStateDict) -> dict[str, Any]:
     current_idx = state["current_doc_index"]
     documents = state["documents"]
     progress_callback = state.get("progress_callback")
+    notes_file_path = state.get("notes_file_path")
     
     if current_idx >= len(documents):
         return {"current_doc_index": current_idx}
@@ -68,6 +69,20 @@ async def read_document_node(state: ReadingStateDict) -> dict[str, Any]:
     logger.info("[Reading] (%d/%d) Done:  %s", new_idx, total, doc.path.name)
     if progress_callback:
         progress_callback("Reading", new_idx, total)
+    
+    # Write notes to file in real-time if path provided
+    if notes_file_path:
+        try:
+            notes_file_path.parent.mkdir(parents=True, exist_ok=True)
+            # Append markdown section with document name and notes
+            with open(notes_file_path, "a", encoding="utf-8") as f:
+                f.write(f"\n## Document {new_idx}/{total}: {doc.path.name}\n\n")
+                f.write(response)
+                f.write("\n")
+                f.flush()
+            logger.debug("[Reading] Notes written to: %s", notes_file_path)
+        except Exception as e:
+            logger.error("[Reading] Failed to write notes: %s", e)
     
     return {
         "notes": response,  # Replace notes with new version

@@ -1,5 +1,6 @@
 """State definitions for the Reading workflow."""
 
+from pathlib import Path
 from typing import TypedDict, Callable, Optional
 
 from inductive_coder.domain.entities import (
@@ -20,3 +21,4 @@ class ReadingStateDict(TypedDict):
     code_book: CodeBook | None
     hierarchy_depth: HierarchyDepth
     progress_callback: Optional[Callable[[str, int, int], None]]
+    notes_file_path: Optional[Path]  # Path to write notes in real-time

@@ -73,6 +73,14 @@ class CodeBookGenerationUseCase:
         if progress_callback:
             progress_callback("Reading", 0, total_docs)
         
+        # Prepare notes file path
+        output_dir = output_path.parent
+        output_dir.mkdir(parents=True, exist_ok=True)
+        notes_file_path = output_dir / "notes.md"
+        # Clear previous notes if any
+        if notes_file_path.exists():
+            notes_file_path.unlink()
+        
         workflow = create_reading_workflow()
         code_book = await workflow.execute(
             mode=mode,
@@ -80,6 +88,7 @@ class CodeBookGenerationUseCase:
             user_context=user_context,
             hierarchy_depth=hierarchy_depth,
             progress_callback=progress_callback,
+            notes_file_path=notes_file_path,
         )
         
         if progress_callback:
@@ -149,6 +158,13 @@ class AnalysisUseCase:
             if progress_callback:
                 progress_callback("Reading", 0, total_docs)
             
+            # Prepare notes file path
+            output_dir.mkdir(parents=True, exist_ok=True)
+            notes_file_path = output_dir / "notes.md"
+            # Clear previous notes if any
+            if notes_file_path.exists():
+                notes_file_path.unlink()
+            
             reading_workflow = create_reading_workflow()
             code_book = await reading_workflow.execute(
                 mode=mode,
@@ -156,6 +172,7 @@ class AnalysisUseCase:
                 user_context=user_context,
                 hierarchy_depth=hierarchy_depth,
                 progress_callback=progress_callback,
+                notes_file_path=notes_file_path,
             )
             
             if progress_callback:

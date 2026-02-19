@@ -1,5 +1,6 @@
 """Graph construction for the Reading workflow."""
 
+from pathlib import Path
 from typing import Any, Optional, Callable
 
 from langgraph.graph import StateGraph, END
@@ -26,6 +27,7 @@ class ReadingWorkflow:
         user_context: str,
         hierarchy_depth: HierarchyDepth = HierarchyDepth.FLAT,
         progress_callback: Optional[Callable[[str, int, int], None]] = None,
+        notes_file_path: Optional[Path] = None,
     ) -> CodeBook:
         """Execute Reading workflow."""
         initial_state: ReadingStateDict = {
@@ -37,6 +39,7 @@ class ReadingWorkflow:
             "code_book": None,
             "hierarchy_depth": hierarchy_depth,
             "progress_callback": progress_callback,
+            "notes_file_path": notes_file_path,
         }
         
         result = await self.app.ainvoke(initial_state)
