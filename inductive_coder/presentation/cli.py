@@ -18,7 +18,7 @@ from inductive_coder.infrastructure.repositories import (
     JSONCodeBookRepository,
     JSONAnalysisResultRepository,
 )
-from inductive_coder.logger import setup_file_logging, teardown_file_logging
+from inductive_coder.logger import setup_file_logging, teardown_file_logging, logger
 
 # Load environment variables
 load_dotenv()
@@ -229,10 +229,17 @@ def analyze(
         console.print("\n[dim]Run 'inductive-coder ui --results-dir {output_dir}' to view results interactively[/dim]")
         
     except Exception as e:
+        import traceback
+        error_msg = f"{type(e).__name__}: {e}"
+        tb_str = traceback.format_exc()
+        
+        # Log error to file before tearing down
+        logger.error("Analysis failed: %s", error_msg)
+        logger.error("Traceback:\n%s", tb_str)
+        
         teardown_file_logging(file_handler)
         console.print(f"\n[red]Error:[/red] {e}")
-        import traceback
-        console.print(traceback.format_exc())
+        console.print(tb_str)
         sys.exit(1)
 
 
@@ -337,10 +344,17 @@ def generate_codebook(
         console.print(f"  inductive-coder analyze --mode {mode} --code-book-file {output_file} ...[/dim]")
         
     except Exception as e:
+        import traceback
+        error_msg = f"{type(e).__name__}: {e}"
+        tb_str = traceback.format_exc()
+        
+        # Log error to file before tearing down
+        logger.error("Code book generation failed: %s", error_msg)
+        logger.error("Traceback:\n%s", tb_str)
+        
         teardown_file_logging(file_handler)
         console.print(f"\n[red]Error:[/red] {e}")
-        import traceback
-        console.print(traceback.format_exc())
+        console.print(tb_str)
         sys.exit(1)
 
 
@@ -358,7 +372,16 @@ def ui(
         from inductive_coder.presentation.ui import launch_ui
         launch_ui(results_dir)
     except Exception as e:
+        import traceback
+        error_msg = f"{type(e).__name__}: {e}"
+        tb_str = traceback.format_exc()
+        
+        # Log error
+        logger.error("UI launch failed: %s", error_msg)
+        logger.error("Traceback:\n%s", tb_str)
+        
         console.print(f"[red]Error:[/red] {e}")
+        console.print(tb_str)
         sys.exit(1)
 
 
