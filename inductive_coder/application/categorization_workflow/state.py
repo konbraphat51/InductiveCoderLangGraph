@@ -1,6 +1,6 @@
 """State definitions for the Categorization workflow."""
 
-from typing import Annotated, TypedDict
+from typing import Annotated, TypedDict, Callable, Optional
 import operator
 
 from inductive_coder.domain.entities import (
@@ -15,6 +15,8 @@ class CategorizationStateDict(TypedDict):
     documents: list[Document]
     code_book: CodeBook
     document_codes: Annotated[list[DocumentCode], operator.add]
+    processed_documents: int
+    progress_callback: Optional[Callable[[str, int, int], None]]
 
 
 class SingleDocCategorizationState(TypedDict):
@@ -22,3 +24,4 @@ class SingleDocCategorizationState(TypedDict):
     document: Document
     code_book: CodeBook
     document_codes: Annotated[list[DocumentCode], operator.add]
+    progress_callback: Optional[Callable[[str, int, int], None]]

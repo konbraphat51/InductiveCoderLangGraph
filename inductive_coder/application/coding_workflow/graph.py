@@ -1,6 +1,6 @@
 """Graph construction for the Coding workflow."""
 
-from typing import Any
+from typing import Any, Optional, Callable
 
 from langgraph.graph import StateGraph, END
 
@@ -29,12 +29,15 @@ class CodingWorkflow:
         self,
         documents: list[Document],
         code_book: CodeBook,
+        progress_callback: Optional[Callable[[str, int, int], None]] = None,
     ) -> list[SentenceCode]:
         """Execute Coding workflow."""
         initial_state: CodingStateDict = {
             "documents": documents,
             "code_book": code_book,
             "sentence_codes": [],
+            "processed_documents": 0,
+            "progress_callback": progress_callback,
         }
         
         result = await self.app.ainvoke(initial_state)

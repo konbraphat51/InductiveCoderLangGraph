@@ -1,6 +1,6 @@
 """Graph construction for the Categorization workflow."""
 
-from typing import Any
+from typing import Any, Optional, Callable
 
 from langgraph.graph import StateGraph, END
 
@@ -25,12 +25,15 @@ class CategorizationWorkflow:
         self,
         documents: list[Document],
         code_book: CodeBook,
+        progress_callback: Optional[Callable[[str, int, int], None]] = None,
     ) -> list[DocumentCode]:
         """Execute Categorization workflow."""
         initial_state: CategorizationStateDict = {
             "documents": documents,
             "code_book": code_book,
             "document_codes": [],
+            "processed_documents": 0,
+            "progress_callback": progress_callback,
         }
         
         result = await self.app.ainvoke(initial_state)

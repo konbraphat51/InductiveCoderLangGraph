@@ -36,6 +36,7 @@ async def read_document_node(state: ReadingStateDict) -> dict[str, Any]:
     """Read a document and take notes."""
     current_idx = state["current_doc_index"]
     documents = state["documents"]
+    progress_callback = state.get("progress_callback")
     
     if current_idx >= len(documents):
         return {"current_doc_index": current_idx}
@@ -58,9 +59,14 @@ async def read_document_node(state: ReadingStateDict) -> dict[str, Any]:
 
     response = await llm.generate(user_prompt, system_prompt=system_prompt)
     
+    # Update progress
+    new_idx = current_idx + 1
+    if progress_callback:
+        progress_callback("Reading", new_idx, len(documents))
+    
     return {
         "notes": response,  # Replace notes with new version
-        "current_doc_index": current_idx + 1,
+        "current_doc_index": new_idx,
     }
 
 

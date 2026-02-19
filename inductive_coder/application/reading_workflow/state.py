@@ -1,6 +1,6 @@
 """State definitions for the Reading workflow."""
 
-from typing import TypedDict
+from typing import TypedDict, Callable, Optional
 
 from inductive_coder.domain.entities import (
     AnalysisMode,
@@ -19,3 +19,4 @@ class ReadingStateDict(TypedDict):
     current_doc_index: int
     code_book: CodeBook | None
     hierarchy_depth: HierarchyDepth
+    progress_callback: Optional[Callable[[str, int, int], None]]

@@ -38,6 +38,7 @@ def fan_out_documents(state: CategorizationStateDict) -> list[Send]:
                     "document": doc,
                     "code_book": state["code_book"],
                     "document_codes": [],
+                    "progress_callback": state.get("progress_callback"),
                 }
             )
         )
@@ -48,6 +49,7 @@ async def categorize_single_document(state: SingleDocCategorizationState) -> dic
     """Categorize a single document."""
     doc = state["document"]
     code_book = state["code_book"]
+    progress_callback = state.get("progress_callback")
     
     llm = get_llm_client(model=get_node_model("CATEGORIZE_DOCUMENT_MODEL"))
     

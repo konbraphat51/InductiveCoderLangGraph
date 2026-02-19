@@ -146,35 +146,45 @@ def analyze(
     
     console.print()
     
+    # Track progress for each workflow with thread-safe state
+    progress_state = {
+        "Reading": {"current": 0, "total": 0},
+        "Coding": {"current": 0, "total": 0},
+        "Categorization": {"current": 0, "total": 0},
+    }
+    progress_lock = __import__("threading").Lock()
+    
+    def progress_callback(workflow_name: str, current: int, total: int) -> None:
+        """Update progress for a specific workflow."""
+        with progress_lock:
+            progress_state[workflow_name] = {"current": current, "total": total}
+            
+            # Print progress update
+            console.print(f"[cyan]{workflow_name}[/cyan]: {current}/{total} documents")
+    
     # Run analysis
     try:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console,
-        ) as progress:
-            task = progress.add_task("Running analysis...", total=None)
-            
-            # Create use case with repositories
-            use_case = AnalysisUseCase(
-                doc_repository=FileSystemDocumentRepository(),
-                code_book_repository=JSONCodeBookRepository(),
-                result_repository=JSONAnalysisResultRepository(),
+        console.print("\n[bold]Starting analysis workflows...[/bold]\n")
+        
+        # Create use case with repositories
+        use_case = AnalysisUseCase(
+            doc_repository=FileSystemDocumentRepository(),
+            code_book_repository=JSONCodeBookRepository(),
+            result_repository=JSONAnalysisResultRepository(),
+        )
+        
+        # Execute with progress callback
+        result = asyncio.run(
+            use_case.execute(
+                mode=analysis_mode,
+                input_dir=input_dir,
+                user_context=user_context,
+                output_dir=output_dir,
+                existing_code_book=code_book_file,
+                hierarchy_depth=hierarchy,
+                progress_callback=progress_callback,
             )
-            
-            # Execute
-            result = asyncio.run(
-                use_case.execute(
-                    mode=analysis_mode,
-                    input_dir=input_dir,
-                    user_context=user_context,
-                    output_dir=output_dir,
-                    existing_code_book=code_book_file,
-                    hierarchy_depth=hierarchy,
-                )
-            )
-            
-            progress.update(task, completed=True)
+        )
         
         # Display results
         console.print("\n[bold green]✓ Analysis complete![/bold green]\n")
@@ -206,6 +216,18 @@ def analyze(
             console.print("\n[bold]Documents per code:[/bold]")
             for code_name, count in sorted(code_counts_doc.items()):
                 console.print(f"  {code_name}: {count}")
+        
+        # Show progress summary
+        console.print("\n[bold]Workflow Progress Summary:[/bold]")
+        for workflow_name, progress_info in progress_state.items():
+            if progress_info["total"] > 0:
+                current = progress_info["current"]
+                total = progress_info["total"]
+                percentage = (current / total) * 100
+                bar_length = 30
+                filled = int(bar_length * current / total)
+                bar = "█" * filled + "░" * (bar_length - filled)
+                console.print(f"  {workflow_name:15} [{bar}] {current:3}/{total:3} ({percentage:6.1f}%)")
         
         console.print(f"\n[bold]Results saved to:[/bold] [blue]{output_dir}[/blue]")
         console.print(f"  - Code book: code_book.json")
@@ -275,33 +297,55 @@ def generate_codebook(
     console.print(f"Output: [blue]{output_file}[/blue]")
     console.print()
     
+    # Track progress for Reading workflow with thread-safe state
+    progress_state = {
+        "Reading": {"current": 0, "total": 0},
+    }
+    progress_lock = __import__("threading").Lock()
+    
+    def progress_callback(workflow_name: str, current: int, total: int) -> None:
+        """Update progress for Reading workflow."""
+        with progress_lock:
+            progress_state[workflow_name] = {"current": current, "total": total}
+            
+            # Print progress update
+            console.print(f"[cyan]{workflow_name}[/cyan]: {current}/{total} documents")
+    
     # Run Round 1 only
     try:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console,
-        ) as progress:
-            task = progress.add_task("Generating code book...", total=None)
-            
-            # Create use case
-            use_case = CodeBookGenerationUseCase(
-                doc_repository=FileSystemDocumentRepository(),
-                code_book_repository=JSONCodeBookRepository(),
+        console.print("\n[bold]Starting code book generation...[/bold]\n")
+        
+        # Create use case
+        use_case = CodeBookGenerationUseCase(
+            doc_repository=FileSystemDocumentRepository(),
+            code_book_repository=JSONCodeBookRepository(),
+        )
+        
+        # Execute with progress callback
+        code_book = asyncio.run(
+            use_case.execute(
+                mode=analysis_mode,
+                input_dir=input_dir,
+                user_context=user_context,
+                output_path=output_file,
+                hierarchy_depth=hierarchy,
+                progress_callback=progress_callback,
             )
-            
-            # Execute
-            code_book = asyncio.run(
-                use_case.execute(
-                    mode=analysis_mode,
-                    input_dir=input_dir,
-                    user_context=user_context,
-                    output_path=output_file,
-                    hierarchy_depth=hierarchy,
-                )
-            )
-            
-            progress.update(task, completed=True)
+        )
+        
+        # Display final progress
+        console.print()
+        console.print("[bold]Code Book Generation Progress Summary:[/bold]")
+        for workflow_name, progress_info in progress_state.items():
+            if progress_info["total"] > 0:
+                current = progress_info["current"]
+                total = progress_info["total"]
+                percentage = (current / total) * 100
+                bar_length = 30
+                filled = int(bar_length * current / total)
+                bar = "█" * filled + "░" * (bar_length - filled)
+                console.print(f"  {workflow_name:15} [{bar}] {current:3}/{total:3} ({percentage:6.1f}%)")
+        console.print()
         
         # Display results
         console.print("\n[bold green]✓ Code book generated![/bold green]\n")

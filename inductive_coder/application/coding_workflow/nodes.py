@@ -62,6 +62,7 @@ def fan_out_documents(state: CodingStateDict) -> list[Send]:
                     "chunks": [],
                     "current_chunk_index": 0,
                     "sentence_codes": [],
+                    "progress_callback": state.get("progress_callback"),
                 }
             )
         )

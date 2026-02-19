@@ -1,6 +1,6 @@
 """State definitions for the Coding workflow."""
 
-from typing import Annotated, TypedDict
+from typing import Annotated, TypedDict, Callable, Optional
 import operator
 
 from inductive_coder.domain.entities import (
@@ -16,6 +16,8 @@ class CodingStateDict(TypedDict):
     documents: list[Document]
     code_book: CodeBook
     sentence_codes: Annotated[list[SentenceCode], operator.add]
+    processed_documents: int
+    progress_callback: Optional[Callable[[str, int, int], None]]
 
 
 class SingleDocCodingState(TypedDict):
@@ -25,3 +27,4 @@ class SingleDocCodingState(TypedDict):
     chunks: list[Chunk]
     current_chunk_index: int
     sentence_codes: Annotated[list[SentenceCode], operator.add]
+    progress_callback: Optional[Callable[[str, int, int], None]]

@@ -1,7 +1,7 @@
 """Use cases for inductive coding analysis."""
 
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Callable
 
 from inductive_coder.domain.entities import (
     AnalysisMode,
@@ -18,6 +18,10 @@ from inductive_coder.domain.repositories import (
 from inductive_coder.application.reading_workflow import create_reading_workflow
 from inductive_coder.application.coding_workflow import create_coding_workflow
 from inductive_coder.application.categorization_workflow import create_categorization_workflow
+
+
+# Type for progress callback: (workflow_name, current, total)
+ProgressCallback = Callable[[str, int, int], None]
 
 
 class CodeBookGenerationUseCase:
@@ -38,6 +42,7 @@ class CodeBookGenerationUseCase:
         user_context: str,
         output_path: Path,
         hierarchy_depth: HierarchyDepth = HierarchyDepth.FLAT,
+        progress_callback: Optional[ProgressCallback] = None,
     ) -> CodeBook:
         """
         Execute Round 1 only to generate a code book.
@@ -48,6 +53,7 @@ class CodeBookGenerationUseCase:
             user_context: User's research question and context
             output_path: Path to save the code book
             hierarchy_depth: Hierarchy depth for code structure
+            progress_callback: Optional callback to report progress (workflow_name, current, total)
         
         Returns:
             Generated CodeBook
@@ -58,14 +64,23 @@ class CodeBookGenerationUseCase:
         if not documents:
             raise ValueError(f"No documents found in {input_dir}")
         
-        # Run Round 1
+        total_docs = len(documents)
+        
+        # Run Round 1 (Reading workflow)
+        if progress_callback:
+            progress_callback("Reading", 0, total_docs)
+        
         workflow = create_reading_workflow()
         code_book = await workflow.execute(
             mode=mode,
             documents=documents,
             user_context=user_context,
             hierarchy_depth=hierarchy_depth,
+            progress_callback=progress_callback,
         )
+        
+        if progress_callback:
+            progress_callback("Reading", total_docs, total_docs)
         
         # Save code book
         self.code_book_repo.save_code_book(code_book, output_path)
@@ -94,6 +109,7 @@ class AnalysisUseCase:
         output_dir: Path,
         existing_code_book: Optional[Path] = None,
         hierarchy_depth: HierarchyDepth = HierarchyDepth.FLAT,
+        progress_callback: Optional[ProgressCallback] = None,
     ) -> AnalysisResult:
         """
         Execute the analysis workflow.
@@ -105,6 +121,7 @@ class AnalysisUseCase:
             output_dir: Directory to save results
             existing_code_book: Optional path to existing code book (skip round 1)
             hierarchy_depth: Hierarchy depth for code structure
+            progress_callback: Optional callback to report progress (workflow_name, current, total)
         
         Returns:
             AnalysisResult with codes applied
@@ -115,17 +132,26 @@ class AnalysisUseCase:
         if not documents:
             raise ValueError(f"No documents found in {input_dir}")
         
+        total_docs = len(documents)
+        
         # Round 1 or load existing code book
         if existing_code_book:
             code_book = self.code_book_repo.load_code_book(existing_code_book)
         else:
+            if progress_callback:
+                progress_callback("Reading", 0, total_docs)
+            
             reading_workflow = create_reading_workflow()
             code_book = await reading_workflow.execute(
                 mode=mode,
                 documents=documents,
                 user_context=user_context,
                 hierarchy_depth=hierarchy_depth,
+                progress_callback=progress_callback,
             )
+            
+            if progress_callback:
+                progress_callback("Reading", total_docs, total_docs)
             
             # Save code book
             code_book_path = output_dir / "code_book.json"
@@ -133,22 +159,38 @@ class AnalysisUseCase:
         
         # Round 2
         if mode == AnalysisMode.CODING:
+            if progress_callback:
+                progress_callback("Coding", 0, total_docs)
+            
             coding_workflow = create_coding_workflow()
             sentence_codes = await coding_workflow.execute(
                 documents=documents,
                 code_book=code_book,
+                progress_callback=progress_callback,
             )
+            
+            if progress_callback:
+                progress_callback("Coding", total_docs, total_docs)
+            
             result = AnalysisResult(
                 mode=mode,
                 code_book=code_book,
                 sentence_codes=sentence_codes,
             )
         else:
+            if progress_callback:
+                progress_callback("Categorization", 0, total_docs)
+            
             categorization_workflow = create_categorization_workflow()
             document_codes = await categorization_workflow.execute(
                 documents=documents,
                 code_book=code_book,
+                progress_callback=progress_callback,
             )
+            
+            if progress_callback:
+                progress_callback("Categorization", total_docs, total_docs)
+            
             result = AnalysisResult(
                 mode=mode,
                 code_book=code_book,
