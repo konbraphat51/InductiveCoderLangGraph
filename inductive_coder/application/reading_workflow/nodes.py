@@ -13,6 +13,7 @@ from inductive_coder.application.reading_workflow.prompts import (
 )
 from inductive_coder.application.reading_workflow.state import ReadingStateDict
 from inductive_coder.application.tools import read_document_from_file, grep_search_directory
+from inductive_coder.logger import logger
 
 
 # Pydantic schemas for structured output
@@ -45,6 +46,9 @@ async def read_document_node(state: ReadingStateDict) -> dict[str, Any]:
     user_context = state["user_context"]
     mode = state["mode"]
     current_notes = state["notes"]
+    total = len(documents)
+    
+    logger.info("[Reading] (%d/%d) Start: %s", current_idx + 1, total, doc.path.name)
     
     llm = get_llm_client(model=get_node_model("READ_DOCUMENT_MODEL"))
     
@@ -61,8 +65,9 @@ async def read_document_node(state: ReadingStateDict) -> dict[str, Any]:
     
     # Update progress
     new_idx = current_idx + 1
+    logger.info("[Reading] (%d/%d) Done:  %s", new_idx, total, doc.path.name)
     if progress_callback:
-        progress_callback("Reading", new_idx, len(documents))
+        progress_callback("Reading", new_idx, total)
     
     return {
         "notes": response,  # Replace notes with new version
@@ -82,6 +87,8 @@ async def create_codebook_node(state: ReadingStateDict) -> dict[str, Any]:
     mode = state["mode"]
     hierarchy_depth = state["hierarchy_depth"]
     documents = state["documents"]
+    
+    logger.info("[Reading] Creating code book from %d documents...", len(documents))
     
     # Get directory from first document if available
     document_dir = "."
@@ -153,5 +160,10 @@ Return the codebook as a valid JSON object matching the CodeBookSchema."""
     ]
     
     code_book = CodeBook(codes=codes, mode=mode, context=user_context, hierarchy_depth=hierarchy_depth)
+    
+    logger.info("[Reading] Code book created: %d codes", len(codes))
+    for c in codes:
+        parent_info = f" (parent: {c.parent_code_name})" if c.parent_code_name else ""
+        logger.debug("[Reading]   Code: %s%s", c.name, parent_info)
     
     return {"code_book": code_book}

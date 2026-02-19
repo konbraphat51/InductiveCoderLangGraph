@@ -12,6 +12,7 @@ from inductive_coder.application.categorization_workflow.state import (
     CategorizationStateDict,
     SingleDocCategorizationState,
 )
+from inductive_coder.logger import logger
 
 
 # Pydantic schemas for structured output
@@ -51,6 +52,8 @@ async def categorize_single_document(state: SingleDocCategorizationState) -> dic
     code_book = state["code_book"]
     progress_callback = state.get("progress_callback")
     
+    logger.info("[Categorization] Start: %s", doc.path.name)
+    
     llm = get_llm_client(model=get_node_model("CATEGORIZE_DOCUMENT_MODEL"))
     
     # Create prompt
@@ -85,6 +88,12 @@ async def categorize_single_document(state: SingleDocCategorizationState) -> dic
                     rationale=rationale,
                 )
             )
+    
+    assigned = [dc.code.name for dc in document_codes]
+    logger.info("[Categorization] Done:  %s -> [%s]", doc.path.name, ", ".join(assigned))
+    
+    if progress_callback:
+        progress_callback("Categorization", 1, 1)  # absolute count tracked in use_case
     
     return {
         "document_codes": document_codes,

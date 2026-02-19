@@ -18,6 +18,7 @@ from inductive_coder.domain.repositories import (
 from inductive_coder.application.reading_workflow import create_reading_workflow
 from inductive_coder.application.coding_workflow import create_coding_workflow
 from inductive_coder.application.categorization_workflow import create_categorization_workflow
+from inductive_coder.logger import logger
 
 
 # Type for progress callback: (workflow_name, current, total)
@@ -65,8 +66,10 @@ class CodeBookGenerationUseCase:
             raise ValueError(f"No documents found in {input_dir}")
         
         total_docs = len(documents)
+        logger.info("=== CodeBook Generation: %d documents, mode=%s ===", total_docs, mode.value)
         
         # Run Round 1 (Reading workflow)
+        logger.info("--- Reading workflow start ---")
         if progress_callback:
             progress_callback("Reading", 0, total_docs)
         
@@ -81,6 +84,8 @@ class CodeBookGenerationUseCase:
         
         if progress_callback:
             progress_callback("Reading", total_docs, total_docs)
+        
+        logger.info("--- Reading workflow complete ---")
         
         # Save code book
         self.code_book_repo.save_code_book(code_book, output_path)
@@ -133,11 +138,14 @@ class AnalysisUseCase:
             raise ValueError(f"No documents found in {input_dir}")
         
         total_docs = len(documents)
+        logger.info("=== Analysis: %d documents, mode=%s ===", total_docs, mode.value)
         
         # Round 1 or load existing code book
         if existing_code_book:
+            logger.info("Loading existing code book: %s", existing_code_book)
             code_book = self.code_book_repo.load_code_book(existing_code_book)
         else:
+            logger.info("--- Reading workflow start ---")
             if progress_callback:
                 progress_callback("Reading", 0, total_docs)
             
@@ -153,12 +161,15 @@ class AnalysisUseCase:
             if progress_callback:
                 progress_callback("Reading", total_docs, total_docs)
             
+            logger.info("--- Reading workflow complete ---")
+            
             # Save code book
             code_book_path = output_dir / "code_book.json"
             self.code_book_repo.save_code_book(code_book, code_book_path)
         
         # Round 2
         if mode == AnalysisMode.CODING:
+            logger.info("--- Coding workflow start ---")
             if progress_callback:
                 progress_callback("Coding", 0, total_docs)
             
@@ -172,12 +183,15 @@ class AnalysisUseCase:
             if progress_callback:
                 progress_callback("Coding", total_docs, total_docs)
             
+            logger.info("--- Coding workflow complete ---")
+            
             result = AnalysisResult(
                 mode=mode,
                 code_book=code_book,
                 sentence_codes=sentence_codes,
             )
         else:
+            logger.info("--- Categorization workflow start ---")
             if progress_callback:
                 progress_callback("Categorization", 0, total_docs)
             
@@ -191,6 +205,8 @@ class AnalysisUseCase:
             if progress_callback:
                 progress_callback("Categorization", total_docs, total_docs)
             
+            logger.info("--- Categorization workflow complete ---")
+            
             result = AnalysisResult(
                 mode=mode,
                 code_book=code_book,
@@ -199,5 +215,6 @@ class AnalysisUseCase:
         
         # Save results
         self.result_repo.save_result(result, output_dir)
+        logger.info("=== Analysis complete. Results saved to: %s ===", output_dir)
         
         return result

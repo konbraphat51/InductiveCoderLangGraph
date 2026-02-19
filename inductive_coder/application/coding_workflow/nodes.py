@@ -15,6 +15,7 @@ from inductive_coder.application.coding_workflow.state import (
     CodingStateDict,
     SingleDocCodingState,
 )
+from inductive_coder.logger import logger
 
 
 # Pydantic schemas for structured output
@@ -73,6 +74,8 @@ async def decide_chunking_node(state: SingleDocCodingState) -> dict[str, Any]:
     """Decide how to chunk the current document."""
     doc = state["document"]
     code_book = state["code_book"]
+    
+    logger.info("[Coding] Deciding chunking for: %s (%d sentences)", doc.path.name, len(doc.sentences))
     
     llm = get_llm_client(model=get_node_model("DECIDE_CHUNKING_MODEL"))
     
@@ -145,6 +148,8 @@ async def code_chunk_node(state: SingleDocCodingState) -> dict[str, Any]:
     chunks = state["chunks"]
     current_chunk_idx = state["current_chunk_index"]
     code_book = state["code_book"]
+    progress_callback = state.get("progress_callback")
+    doc = state["document"]
     
     if current_chunk_idx >= len(chunks):
         return {"current_chunk_index": current_chunk_idx}
@@ -153,7 +158,12 @@ async def code_chunk_node(state: SingleDocCodingState) -> dict[str, Any]:
     
     # Skip if not relevant
     if not chunk.should_code:
+        logger.debug("[Coding] Skipping chunk %d/%d (not relevant): %s",
+                     current_chunk_idx + 1, len(chunks), doc.path.name)
         return {"current_chunk_index": current_chunk_idx + 1}
+    
+    logger.info("[Coding] Coding chunk %d/%d of %s (%d sentences)",
+                current_chunk_idx + 1, len(chunks), doc.path.name, len(chunk.sentences))
     
     llm = get_llm_client(model=get_node_model("CODE_CHUNK_MODEL"))
     
@@ -188,6 +198,18 @@ async def code_chunk_node(state: SingleDocCodingState) -> dict[str, Any]:
                     rationale=sc.get("rationale"),
                 )
             )
+    
+    logger.info("[Coding] Chunk %d/%d done: %d codes assigned in %s",
+                current_chunk_idx + 1, len(chunks), len(sentence_codes), doc.path.name)
+    for sc in sentence_codes:
+        logger.debug("[Coding]   %s -> %s", sc.sentence_id, sc.code.name)
+    
+    # Notify progress when last chunk of a document is coded
+    if current_chunk_idx + 1 >= len(chunks) or not any(
+        c.should_code for c in chunks[current_chunk_idx + 1:]
+    ):
+        if progress_callback:
+            progress_callback("Coding", 1, 1)  # increment handled at use_case level
     
     return {
         "sentence_codes": sentence_codes,

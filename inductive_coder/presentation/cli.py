@@ -7,7 +7,6 @@ import sys
 
 import typer
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 from rich.tree import Tree
 from dotenv import load_dotenv
@@ -19,6 +18,7 @@ from inductive_coder.infrastructure.repositories import (
     JSONCodeBookRepository,
     JSONAnalysisResultRepository,
 )
+from inductive_coder.logger import setup_file_logging, teardown_file_logging
 
 # Load environment variables
 load_dotenv()
@@ -144,28 +144,25 @@ def analyze(
     else:
         console.print("Code Book: [yellow]Will be created in round 1[/yellow]")
     
+    log_path = output_dir / "run.log"
+    console.print(f"Log: [blue]{log_path}[/blue] (real-time)")
     console.print()
     
-    # Track progress for each workflow with thread-safe state
-    progress_state = {
-        "Reading": {"current": 0, "total": 0},
-        "Coding": {"current": 0, "total": 0},
-        "Categorization": {"current": 0, "total": 0},
-    }
-    progress_lock = __import__("threading").Lock()
+    # Set up real-time file logging
+    file_handler = setup_file_logging(output_dir)
     
     def progress_callback(workflow_name: str, current: int, total: int) -> None:
-        """Update progress for a specific workflow."""
-        with progress_lock:
-            progress_state[workflow_name] = {"current": current, "total": total}
-            
-            # Print progress update
-            console.print(f"[cyan]{workflow_name}[/cyan]: {current}/{total} documents")
+        """Print progress to console."""
+        if current == 0:
+            console.print(f"\n[bold yellow]▶ {workflow_name} workflow[/bold yellow] (0/{total})"
+                          f"  → [dim]{log_path}[/dim]")
+        elif current == total:
+            console.print(f"[bold green]✓ {workflow_name} workflow complete[/bold green] ({total}/{total})")
+        else:
+            console.print(f"  [cyan]{workflow_name}[/cyan] {current}/{total}")
     
     # Run analysis
     try:
-        console.print("\n[bold]Starting analysis workflows...[/bold]\n")
-        
         # Create use case with repositories
         use_case = AnalysisUseCase(
             doc_repository=FileSystemDocumentRepository(),
@@ -185,6 +182,8 @@ def analyze(
                 progress_callback=progress_callback,
             )
         )
+        
+        teardown_file_logging(file_handler)
         
         # Display results
         console.print("\n[bold green]✓ Analysis complete![/bold green]\n")
@@ -217,18 +216,6 @@ def analyze(
             for code_name, count in sorted(code_counts_doc.items()):
                 console.print(f"  {code_name}: {count}")
         
-        # Show progress summary
-        console.print("\n[bold]Workflow Progress Summary:[/bold]")
-        for workflow_name, progress_info in progress_state.items():
-            if progress_info["total"] > 0:
-                current = progress_info["current"]
-                total = progress_info["total"]
-                percentage = (current / total) * 100
-                bar_length = 30
-                filled = int(bar_length * current / total)
-                bar = "█" * filled + "░" * (bar_length - filled)
-                console.print(f"  {workflow_name:15} [{bar}] {current:3}/{total:3} ({percentage:6.1f}%)")
-        
         console.print(f"\n[bold]Results saved to:[/bold] [blue]{output_dir}[/blue]")
         console.print(f"  - Code book: code_book.json")
         
@@ -238,9 +225,11 @@ def analyze(
             console.print(f"  - Codes: document_codes.json")
         
         console.print(f"  - Summary: summary.txt")
+        console.print(f"  - Run log: run.log")
         console.print("\n[dim]Run 'inductive-coder ui --results-dir {output_dir}' to view results interactively[/dim]")
         
     except Exception as e:
+        teardown_file_logging(file_handler)
         console.print(f"\n[red]Error:[/red] {e}")
         import traceback
         console.print(traceback.format_exc())
@@ -295,26 +284,26 @@ def generate_codebook(
     console.print(f"Hierarchy Depth: [green]{hierarchy.value}[/green]")
     console.print(f"Input: [blue]{input_dir}[/blue]")
     console.print(f"Output: [blue]{output_file}[/blue]")
+    
+    log_path = output_file.parent / "run.log"
+    console.print(f"Log: [blue]{log_path}[/blue] (real-time)")
     console.print()
     
-    # Track progress for Reading workflow with thread-safe state
-    progress_state = {
-        "Reading": {"current": 0, "total": 0},
-    }
-    progress_lock = __import__("threading").Lock()
+    # Set up real-time file logging
+    file_handler = setup_file_logging(output_file.parent)
     
     def progress_callback(workflow_name: str, current: int, total: int) -> None:
-        """Update progress for Reading workflow."""
-        with progress_lock:
-            progress_state[workflow_name] = {"current": current, "total": total}
-            
-            # Print progress update
-            console.print(f"[cyan]{workflow_name}[/cyan]: {current}/{total} documents")
+        """Print progress to console."""
+        if current == 0:
+            console.print(f"\n[bold yellow]▶ {workflow_name} workflow[/bold yellow] (0/{total})"
+                          f"  → [dim]{log_path}[/dim]")
+        elif current == total:
+            console.print(f"[bold green]✓ {workflow_name} workflow complete[/bold green] ({total}/{total})")
+        else:
+            console.print(f"  [cyan]{workflow_name}[/cyan] {current}/{total}")
     
     # Run Round 1 only
     try:
-        console.print("\n[bold]Starting code book generation...[/bold]\n")
-        
         # Create use case
         use_case = CodeBookGenerationUseCase(
             doc_repository=FileSystemDocumentRepository(),
@@ -333,19 +322,7 @@ def generate_codebook(
             )
         )
         
-        # Display final progress
-        console.print()
-        console.print("[bold]Code Book Generation Progress Summary:[/bold]")
-        for workflow_name, progress_info in progress_state.items():
-            if progress_info["total"] > 0:
-                current = progress_info["current"]
-                total = progress_info["total"]
-                percentage = (current / total) * 100
-                bar_length = 30
-                filled = int(bar_length * current / total)
-                bar = "█" * filled + "░" * (bar_length - filled)
-                console.print(f"  {workflow_name:15} [{bar}] {current:3}/{total:3} ({percentage:6.1f}%)")
-        console.print()
+        teardown_file_logging(file_handler)
         
         # Display results
         console.print("\n[bold green]✓ Code book generated![/bold green]\n")
@@ -355,10 +332,12 @@ def generate_codebook(
         console.print()
         
         console.print(f"[bold]Code book saved to:[/bold] [blue]{output_file}[/blue]")
+        console.print(f"  - Run log: {log_path}")
         console.print("\n[dim]You can now use this code book with:")
         console.print(f"  inductive-coder analyze --mode {mode} --code-book-file {output_file} ...[/dim]")
         
     except Exception as e:
+        teardown_file_logging(file_handler)
         console.print(f"\n[red]Error:[/red] {e}")
         import traceback
         console.print(traceback.format_exc())
