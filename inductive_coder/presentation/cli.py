@@ -92,6 +92,7 @@ def analyze(
     code_book_file: Optional[Path] = typer.Option(None, "--code-book-file", "-c", help="Existing code book (skip round 1)"),
     output_dir: Path = typer.Option("./output", "--output-dir", "-o", help="Output directory for results"),
     hierarchy_depth: str = typer.Option("1", "--hierarchy-depth", "-d", help="Code hierarchy depth: 1 (flat), 2 (two-level), or arbitrary (unlimited)"),
+    batch_size: int = typer.Option(1, "--batch-size", "-b", help="Number of documents to read per LLM call in round 1 (default 1)"),
 ) -> None:
     """Run inductive coding analysis."""
     
@@ -136,6 +137,7 @@ def analyze(
     console.print("\n[bold cyan]Inductive Coding Analysis[/bold cyan]")
     console.print(f"Mode: [green]{analysis_mode.value}[/green]")
     console.print(f"Hierarchy Depth: [green]{hierarchy.value}[/green]")
+    console.print(f"Batch Size: [green]{batch_size}[/green]")
     console.print(f"Input: [blue]{input_dir}[/blue]")
     console.print(f"Output: [blue]{output_dir}[/blue]")
     
@@ -179,6 +181,7 @@ def analyze(
                 output_dir=output_dir,
                 existing_code_book=code_book_file,
                 hierarchy_depth=hierarchy,
+                batch_size=batch_size,
                 progress_callback=progress_callback,
             )
         )
@@ -250,6 +253,7 @@ def generate_codebook(
     prompt_file: Optional[Path] = typer.Option(None, "--prompt-file", "-p", help="File containing user prompt/context"),
     output_file: Path = typer.Option("./code_book.json", "--output-file", "-o", help="Output file for code book"),
     hierarchy_depth: str = typer.Option("1", "--hierarchy-depth", "-d", help="Code hierarchy depth: 1 (flat), 2 (two-level), or arbitrary (unlimited)"),
+    batch_size: int = typer.Option(1, "--batch-size", "-b", help="Number of documents to read per LLM call (default 1)"),
 ) -> None:
     """Generate code book only (Round 1 only) without applying codes."""
     
@@ -289,6 +293,7 @@ def generate_codebook(
     console.print("\n[bold cyan]Code Book Generation (Round 1 Only)[/bold cyan]")
     console.print(f"Mode: [green]{analysis_mode.value}[/green]")
     console.print(f"Hierarchy Depth: [green]{hierarchy.value}[/green]")
+    console.print(f"Batch Size: [green]{batch_size}[/green]")
     console.print(f"Input: [blue]{input_dir}[/blue]")
     console.print(f"Output: [blue]{output_file}[/blue]")
     
@@ -325,6 +330,7 @@ def generate_codebook(
                 user_context=user_context,
                 output_path=output_file,
                 hierarchy_depth=hierarchy,
+                batch_size=batch_size,
                 progress_callback=progress_callback,
             )
         )

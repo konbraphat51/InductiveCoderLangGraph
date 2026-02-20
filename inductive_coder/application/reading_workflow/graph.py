@@ -26,6 +26,7 @@ class ReadingWorkflow:
         documents: list[Document],
         user_context: str,
         hierarchy_depth: HierarchyDepth = HierarchyDepth.FLAT,
+        batch_size: int = 1,
         progress_callback: Optional[Callable[[str, int, int], None]] = None,
         notes_file_path: Optional[Path] = None,
     ) -> CodeBook:
@@ -38,6 +39,7 @@ class ReadingWorkflow:
             "current_doc_index": 0,
             "code_book": None,
             "hierarchy_depth": hierarchy_depth,
+            "batch_size": batch_size,
             "progress_callback": progress_callback,
             "notes_file_path": notes_file_path,
         }

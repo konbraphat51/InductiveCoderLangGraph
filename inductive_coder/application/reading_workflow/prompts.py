@@ -8,17 +8,15 @@ from inductive_coder.domain.entities import HierarchyDepth
 def get_read_document_prompts(
     mode: str, 
     user_context: str, 
-    doc_name: str, 
-    doc_content: str,
+    docs: list[tuple[str, str]],
     current_notes: Optional[str] = None
 ) -> Tuple[str, str]:
-    """Get system and user prompts for reading and taking notes on a document.
+    """Get system and user prompts for reading and taking notes on documents.
     
     Args:
         mode: Analysis mode (coding or categorization)
         user_context: User's research question and context
-        doc_name: Name of the document being read
-        doc_content: Full content of the document
+        docs: List of (doc_name, doc_content) tuples to analyze in one call
         current_notes: Optional current notes (long-term memory) to include in context
     
     Returns:
@@ -35,17 +33,25 @@ Provide your notes in a clear, structured format. These notes will serve as your
     
     # Add current notes context if exists
     if current_notes:
-        system_prompt += f"\n\nYour current notes (long-term memory):\n{current_notes}\n\nYou can update or expand these notes based on the new document."
+        system_prompt += f"\n\nYour current notes (long-term memory):\n{current_notes}\n\nYou can update or expand these notes based on the new document(s)."
+    
+    # Build the documents section
+    if len(docs) == 1:
+        doc_name, doc_content = docs[0]
+        docs_section = f"Document to analyze: {doc_name}\n\nContent:\n{doc_content}"
+    else:
+        doc_parts = []
+        for i, (doc_name, doc_content) in enumerate(docs, 1):
+            doc_parts.append(f"### Document {i}: {doc_name}\n\n{doc_content}")
+        docs_section = "Documents to analyze:\n\n" + "\n\n---\n\n".join(doc_parts)
     
     user_prompt = f"""Research question and context:
 {user_context}
 
-Document to analyze: {doc_name}
-
-Content:
-{doc_content}"""
+{docs_section}"""
     
     return system_prompt, user_prompt
+
 
 
 def get_create_codebook_prompts(

@@ -34,22 +34,33 @@ class CodeBookSchema(BaseModel):
 # Node functions
 
 async def read_document_node(state: ReadingStateDict) -> dict[str, Any]:
-    """Read a document and take notes."""
+    """Read a batch of documents and take notes."""
     current_idx = state["current_doc_index"]
     documents = state["documents"]
     progress_callback = state.get("progress_callback")
     notes_file_path = state.get("notes_file_path")
+    batch_size = state.get("batch_size", 1)
     
     if current_idx >= len(documents):
         return {"current_doc_index": current_idx}
     
-    doc = documents[current_idx]
     user_context = state["user_context"]
     mode = state["mode"]
     current_notes = state["notes"]
     total = len(documents)
     
-    logger.info("[Reading] (%d/%d) Start: %s", current_idx + 1, total, doc.path.name)
+    # Determine the batch of documents to read
+    batch_end = min(current_idx + batch_size, total)
+    batch_docs = documents[current_idx:batch_end]
+    
+    if batch_size > 1:
+        logger.info(
+            "[Reading] (%d-%d/%d) Start: %s",
+            current_idx + 1, batch_end, total,
+            ", ".join(d.path.name for d in batch_docs),
+        )
+    else:
+        logger.info("[Reading] (%d/%d) Start: %s", current_idx + 1, total, batch_docs[0].path.name)
     
     llm = get_llm_client(model=get_node_model("READ_DOCUMENT_MODEL"))
     
@@ -57,16 +68,18 @@ async def read_document_node(state: ReadingStateDict) -> dict[str, Any]:
     system_prompt, user_prompt = get_read_document_prompts(
         mode=mode.value,
         user_context=user_context,
-        doc_name=doc.path.name,
-        doc_content=doc.content,
-        current_notes=current_notes
+        docs=[(d.path.name, d.content) for d in batch_docs],
+        current_notes=current_notes,
     )
 
     response = await llm.generate(user_prompt, system_prompt=system_prompt)
     
     # Update progress
-    new_idx = current_idx + 1
-    logger.info("[Reading] (%d/%d) Done:  %s", new_idx, total, doc.path.name)
+    new_idx = batch_end
+    if batch_size > 1:
+        logger.info("[Reading] (%d-%d/%d) Done", current_idx + 1, new_idx, total)
+    else:
+        logger.info("[Reading] (%d/%d) Done:  %s", new_idx, total, batch_docs[0].path.name)
     if progress_callback:
         progress_callback("Reading", new_idx, total)
     
@@ -74,9 +87,12 @@ async def read_document_node(state: ReadingStateDict) -> dict[str, Any]:
     if notes_file_path:
         try:
             notes_file_path.parent.mkdir(parents=True, exist_ok=True)
-            # Append markdown section with document name and notes
             with open(notes_file_path, "a", encoding="utf-8") as f:
-                f.write(f"\n## Document {new_idx}/{total}: {doc.path.name}\n\n")
+                if batch_size > 1:
+                    names = ", ".join(d.path.name for d in batch_docs)
+                    f.write(f"\n## Documents {current_idx + 1}-{new_idx}/{total}: {names}\n\n")
+                else:
+                    f.write(f"\n## Document {new_idx}/{total}: {batch_docs[0].path.name}\n\n")
                 f.write(response)
                 f.write("\n")
                 f.flush()

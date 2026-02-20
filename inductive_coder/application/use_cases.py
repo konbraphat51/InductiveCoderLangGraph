@@ -43,6 +43,7 @@ class CodeBookGenerationUseCase:
         user_context: str,
         output_path: Path,
         hierarchy_depth: HierarchyDepth = HierarchyDepth.FLAT,
+        batch_size: int = 1,
         progress_callback: Optional[ProgressCallback] = None,
     ) -> CodeBook:
         """
@@ -54,6 +55,7 @@ class CodeBookGenerationUseCase:
             user_context: User's research question and context
             output_path: Path to save the code book
             hierarchy_depth: Hierarchy depth for code structure
+            batch_size: Number of documents to read per LLM call (default 1)
             progress_callback: Optional callback to report progress (workflow_name, current, total)
         
         Returns:
@@ -87,6 +89,7 @@ class CodeBookGenerationUseCase:
             documents=documents,
             user_context=user_context,
             hierarchy_depth=hierarchy_depth,
+            batch_size=batch_size,
             progress_callback=progress_callback,
             notes_file_path=notes_file_path,
         )
@@ -123,6 +126,7 @@ class AnalysisUseCase:
         output_dir: Path,
         existing_code_book: Optional[Path] = None,
         hierarchy_depth: HierarchyDepth = HierarchyDepth.FLAT,
+        batch_size: int = 1,
         progress_callback: Optional[ProgressCallback] = None,
     ) -> AnalysisResult:
         """
@@ -135,6 +139,7 @@ class AnalysisUseCase:
             output_dir: Directory to save results
             existing_code_book: Optional path to existing code book (skip round 1)
             hierarchy_depth: Hierarchy depth for code structure
+            batch_size: Number of documents to read per LLM call in round 1 (default 1)
             progress_callback: Optional callback to report progress (workflow_name, current, total)
         
         Returns:
@@ -171,6 +176,7 @@ class AnalysisUseCase:
                 documents=documents,
                 user_context=user_context,
                 hierarchy_depth=hierarchy_depth,
+                batch_size=batch_size,
                 progress_callback=progress_callback,
                 notes_file_path=notes_file_path,
             )
