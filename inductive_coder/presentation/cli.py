@@ -154,10 +154,10 @@ def analyze(
     def progress_callback(workflow_name: str, current: int, total: int) -> None:
         """Print progress to console."""
         if current == 0:
-            console.print(f"\n[bold yellow]▶ {workflow_name} workflow[/bold yellow] (0/{total})"
-                          f"  → [dim]{log_path}[/dim]")
+            console.print(f"\n[bold yellow]> {workflow_name} workflow[/bold yellow] (0/{total})"
+                          f"  -> [dim]{log_path}[/dim]")
         elif current == total:
-            console.print(f"[bold green]✓ {workflow_name} workflow complete[/bold green] ({total}/{total})")
+            console.print(f"[bold green]* {workflow_name} workflow complete[/bold green] ({total}/{total})")
         else:
             console.print(f"  [cyan]{workflow_name}[/cyan] {current}/{total}")
     

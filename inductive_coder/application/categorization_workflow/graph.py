@@ -3,6 +3,7 @@
 from typing import Any, Optional, Callable
 
 from langgraph.graph import StateGraph, END
+from langgraph.types import Send
 
 from inductive_coder.domain.entities import CodeBook, Document, DocumentCode
 from inductive_coder.application.categorization_workflow.state import (
@@ -10,7 +11,6 @@ from inductive_coder.application.categorization_workflow.state import (
     SingleDocCategorizationState,
 )
 from inductive_coder.application.categorization_workflow.nodes import (
-    fan_out_documents,
     categorize_single_document,
 )
 
@@ -40,21 +40,35 @@ class CategorizationWorkflow:
         return result["document_codes"]
 
 
+def fan_out_mapper(state: CategorizationStateDict):
+    """Route each document to categorize_single_document in parallel."""
+    return [
+        Send(
+            "categorize_single_document",
+            {
+                "document": doc,
+                "code_book": state["code_book"],
+                "document_codes": [],
+                "progress_callback": state.get("progress_callback"),
+            }
+        )
+        for doc in state["documents"]
+    ]
+
+
 def create_categorization_workflow() -> CategorizationWorkflow:
     """Create the Categorization workflow graph."""
     
     # Build the graph
     workflow = StateGraph(CategorizationStateDict)
     
-    # Add nodes
-    workflow.add_node("fan_out", fan_out_documents)
+    # Add the categorization node
     workflow.add_node("categorize_single_document", categorize_single_document)
     
-    # Set entry point
-    workflow.set_entry_point("fan_out")
+    # Use conditional edges from start that return Send objects
+    workflow.add_conditional_edges("__start__", fan_out_mapper)
     
-    # Add edges - fan_out sends to categorize_single_document in parallel
-    workflow.add_conditional_edges("fan_out", lambda x: x)
+    # Categorization node connects to the END
     workflow.add_edge("categorize_single_document", END)
     
     return CategorizationWorkflow(workflow)

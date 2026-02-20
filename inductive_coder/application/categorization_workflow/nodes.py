@@ -3,13 +3,11 @@
 from typing import Any
 
 from pydantic import BaseModel, Field
-from langgraph.types import Send
 
 from inductive_coder.domain.entities import DocumentCode
 from inductive_coder.infrastructure.llm_client import get_llm_client, get_node_model
 from inductive_coder.application.categorization_workflow.prompts import get_categorize_document_prompts
 from inductive_coder.application.categorization_workflow.state import (
-    CategorizationStateDict,
     SingleDocCategorizationState,
 )
 from inductive_coder.logger import logger
@@ -27,24 +25,6 @@ class DocumentCodeSchema(BaseModel):
 
 
 # Node functions
-
-def fan_out_documents(state: CategorizationStateDict) -> list[Send]:
-    """Fan out to process each document in parallel."""
-    sends = []
-    for doc in state["documents"]:
-        sends.append(
-            Send(
-                "categorize_single_document",
-                {
-                    "document": doc,
-                    "code_book": state["code_book"],
-                    "document_codes": [],
-                    "progress_callback": state.get("progress_callback"),
-                }
-            )
-        )
-    return sends
-
 
 async def categorize_single_document(state: SingleDocCategorizationState) -> dict[str, Any]:
     """Categorize a single document."""

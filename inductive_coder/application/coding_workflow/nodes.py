@@ -52,22 +52,20 @@ class SentenceCodesSchema(BaseModel):
 
 def fan_out_documents(state: CodingStateDict) -> list[Send]:
     """Fan out to process each document in parallel."""
-    sends = []
-    for doc in state["documents"]:
-        sends.append(
-            Send(
-                "decide_chunking",
-                {
-                    "document": doc,
-                    "code_book": state["code_book"],
-                    "chunks": [],
-                    "current_chunk_index": 0,
-                    "sentence_codes": [],
-                    "progress_callback": state.get("progress_callback"),
-                }
-            )
+    return [
+        Send(
+            "decide_chunking",
+            {
+                "document": doc,
+                "code_book": state["code_book"],
+                "chunks": [],
+                "current_chunk_index": 0,
+                "sentence_codes": [],
+                "progress_callback": state.get("progress_callback"),
+            }
         )
-    return sends
+        for doc in state["documents"]
+    ]
 
 
 async def decide_chunking_node(state: SingleDocCodingState) -> dict[str, Any]:

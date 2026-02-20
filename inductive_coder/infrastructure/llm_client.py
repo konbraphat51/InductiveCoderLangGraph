@@ -54,8 +54,8 @@ class OpenAILLMClient(ILLMClient):
         system_prompt: str | None = None
     ) -> dict[str, Any]:
         """Generate a structured response matching the given schema."""
-        # Use structured output with Pydantic schema
-        structured_llm = self.llm.with_structured_output(schema)
+        # Use function_calling method for compatibility with optional/default fields
+        structured_llm = self.llm.with_structured_output(schema, method="function_calling")
         
         messages = []
         

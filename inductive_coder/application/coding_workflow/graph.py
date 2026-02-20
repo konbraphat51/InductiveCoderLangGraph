@@ -3,6 +3,7 @@
 from typing import Any, Optional, Callable
 
 from langgraph.graph import StateGraph, END
+from langgraph.types import Send
 
 from inductive_coder.domain.entities import CodeBook, Document, SentenceCode
 from inductive_coder.application.coding_workflow.state import (
@@ -51,15 +52,11 @@ def create_coding_workflow() -> CodingWorkflow:
     workflow = StateGraph(CodingStateDict)
     
     # Add nodes
-    workflow.add_node("fan_out", fan_out_documents)
     workflow.add_node("decide_chunking", decide_chunking_node)
     workflow.add_node("code_chunk", code_chunk_node)
     
-    # Set entry point
-    workflow.set_entry_point("fan_out")
-    
-    # Add edges - fan_out sends to decide_chunking in parallel for each document
-    workflow.add_conditional_edges("fan_out", lambda x: x)
+    # Use conditional edges from start that return Send objects for parallel processing
+    workflow.add_conditional_edges("__start__", fan_out_documents)
     
     # Within each document, process chunks sequentially
     workflow.add_conditional_edges(
