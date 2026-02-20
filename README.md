@@ -20,6 +20,7 @@ An LLM-based inductive coding tool built with LangGraph for qualitative research
 - **Smart Optimization:**
   - Intelligent text chunking to minimize LLM token usage
   - Skip irrelevant sections automatically
+  - Batch processing: Read multiple documents per LLM call for faster analysis
 
 - **Interactive UI:**
   - Visualize codes per file
@@ -121,6 +122,21 @@ uv run inductive-coder analyze \
   --input-dir ./data \
   --code-book-file ./my_codebook.json \
   --output-dir ./output
+```
+
+**Batch Processing** (read multiple documents per LLM call):
+```bash
+# Read documents in batches of 10 (faster, uses longer context)
+uv run inductive-coder analyze \
+  --mode coding \
+  --batch-size 10 \
+  --input-dir ./data \
+  --prompt-file my_prompt.md \
+  --output-dir ./output
+
+# Default batch-size is 1 (one document per LLM call)
+# Higher batch sizes are faster but may affect code consistency
+# Recommended range: 1-20 depending on document length and LLM context limit
 ```
 
 **Create a manual code book**:
