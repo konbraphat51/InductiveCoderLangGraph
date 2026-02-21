@@ -58,6 +58,7 @@ def fan_out_documents(state: CodingStateDict) -> list[Send]:
             {
                 "document": doc,
                 "code_book": state["code_book"],
+                "user_context": state["user_context"],
                 "chunks": [],
                 "current_chunk_index": 0,
                 "sentence_codes": [],
@@ -72,6 +73,7 @@ async def decide_chunking_node(state: SingleDocCodingState) -> dict[str, Any]:
     """Decide how to chunk the current document."""
     doc = state["document"]
     code_book = state["code_book"]
+    user_context = state["user_context"]
     
     logger.info("[Coding] Deciding chunking for: %s (%d sentences)", doc.path.name, len(doc.sentences))
     
@@ -84,7 +86,8 @@ async def decide_chunking_node(state: SingleDocCodingState) -> dict[str, Any]:
     system_prompt, user_prompt = get_chunking_decision_prompts(
         doc_name=doc.path.name,
         sentence_list=sentence_list,
-        code_list=code_list
+        code_list=code_list,
+        user_context=user_context
     )
 
     response = await llm.generate_structured(
@@ -146,6 +149,7 @@ async def code_chunk_node(state: SingleDocCodingState) -> dict[str, Any]:
     chunks = state["chunks"]
     current_chunk_idx = state["current_chunk_index"]
     code_book = state["code_book"]
+    user_context = state["user_context"]
     progress_callback = state.get("progress_callback")
     doc = state["document"]
     
@@ -174,7 +178,8 @@ async def code_chunk_node(state: SingleDocCodingState) -> dict[str, Any]:
     
     system_prompt, user_prompt = get_code_chunk_prompts(
         sentence_list=sentence_list,
-        code_list=code_list
+        code_list=code_list,
+        user_context=user_context
     )
 
     response = await llm.generate_structured(

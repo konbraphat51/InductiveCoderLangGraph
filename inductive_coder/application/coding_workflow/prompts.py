@@ -3,13 +3,14 @@
 from typing import Tuple
 
 
-def get_chunking_decision_prompts(doc_name: str, sentence_list: str, code_list: str) -> Tuple[str, str]:
+def get_chunking_decision_prompts(doc_name: str, sentence_list: str, code_list: str, user_context: str) -> Tuple[str, str]:
     """Get system and user prompts for deciding how to chunk a document.
     
     Args:
         doc_name: Name of the document
         sentence_list: Formatted list of sentences with IDs
         code_list: Formatted list of codes from the code book
+        user_context: User's research question and context
     
     Returns:
         Tuple of (system_prompt, user_prompt)
@@ -26,7 +27,10 @@ If chunking, specify:
 
 This helps minimize LLM token usage by skipping irrelevant sections."""
     
-    user_prompt = f"""Code book:
+    user_prompt = f"""Research Context:
+{user_context}
+
+Code book:
 {code_list}
 
 Document: {doc_name}
@@ -37,12 +41,13 @@ Sentences:
     return system_prompt, user_prompt
 
 
-def get_code_chunk_prompts(sentence_list: str, code_list: str) -> Tuple[str, str]:
+def get_code_chunk_prompts(sentence_list: str, code_list: str, user_context: str) -> Tuple[str, str]:
     """Get system and user prompts for applying codes to a chunk of sentences.
     
     Args:
         sentence_list: Formatted list of sentences with IDs
         code_list: Formatted list of codes with criteria
+        user_context: User's research question and context
     
     Returns:
         Tuple of (system_prompt, user_prompt)
@@ -56,7 +61,10 @@ For each sentence that matches one or more codes:
 
 Return all sentence-code pairs for this chunk."""
     
-    user_prompt = f"""Code book:
+    user_prompt = f"""Research Context:
+{user_context}
+
+Code book:
 {code_list}
 
 Sentences to code:

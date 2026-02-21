@@ -30,12 +30,14 @@ class CodingWorkflow:
         self,
         documents: list[Document],
         code_book: CodeBook,
+        user_context: str,
         progress_callback: Optional[Callable[[str, int, int], None]] = None,
     ) -> list[SentenceCode]:
         """Execute Coding workflow."""
         initial_state: CodingStateDict = {
             "documents": documents,
             "code_book": code_book,
+            "user_context": user_context,
             "sentence_codes": [],
             "processed_documents": 0,
             "progress_callback": progress_callback,

@@ -30,6 +30,7 @@ async def categorize_single_document(state: SingleDocCategorizationState) -> dic
     """Categorize a single document."""
     doc = state["document"]
     code_book = state["code_book"]
+    user_context = state["user_context"]
     progress_callback = state.get("progress_callback")
     
     logger.info("[Categorization] Start: %s", doc.path.name)
@@ -45,7 +46,8 @@ async def categorize_single_document(state: SingleDocCategorizationState) -> dic
     system_prompt, user_prompt = get_categorize_document_prompts(
         doc_name=doc.path.name,
         doc_content=doc.content,
-        code_list=code_list
+        code_list=code_list,
+        user_context=user_context
     )
 
     response = await llm.generate_structured(

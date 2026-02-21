@@ -25,12 +25,14 @@ class CategorizationWorkflow:
         self,
         documents: list[Document],
         code_book: CodeBook,
+        user_context: str,
         progress_callback: Optional[Callable[[str, int, int], None]] = None,
     ) -> list[DocumentCode]:
         """Execute Categorization workflow."""
         initial_state: CategorizationStateDict = {
             "documents": documents,
             "code_book": code_book,
+            "user_context": user_context,
             "document_codes": [],
             "processed_documents": 0,
             "progress_callback": progress_callback,
@@ -48,6 +50,7 @@ def fan_out_mapper(state: CategorizationStateDict):
             {
                 "document": doc,
                 "code_book": state["code_book"],
+                "user_context": state["user_context"],
                 "document_codes": [],
                 "progress_callback": state.get("progress_callback"),
             }

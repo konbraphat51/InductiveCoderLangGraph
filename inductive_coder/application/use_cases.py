@@ -200,6 +200,7 @@ class AnalysisUseCase:
             sentence_codes = await coding_workflow.execute(
                 documents=documents,
                 code_book=code_book,
+                user_context=user_context,
                 progress_callback=progress_callback,
             )
             
@@ -222,6 +223,7 @@ class AnalysisUseCase:
             document_codes = await categorization_workflow.execute(
                 documents=documents,
                 code_book=code_book,
+                user_context=user_context,
                 progress_callback=progress_callback,
             )
             
