@@ -78,35 +78,31 @@ def get_create_codebook_prompts(
     Returns:
         Tuple of (system_prompt, user_prompt)
     """
-    base_system_prompt = f"""You are creating a code book for inductive {mode} analysis.
+    base_system_prompt = f"""You are creating a code book for inductive {mode}.
 
-Create a comprehensive code book with codes that:
+Create a comprehensive {mode} book with codes that:
 1. Capture the key themes, patterns, and categories in the data
 2. Are relevant to the user's research question
 3. Have clear criteria for when to apply each code
 4. Are mutually exclusive where possible but can overlap when necessary
-
-Provide 5-10 codes that will be most useful for analyzing this data."""
+5. Cover all concepts and ideas, no matter how specific or broad, as long as they are relevant to the research question.
+"""
     
     # Add hierarchy instructions based on depth
     if hierarchy_depth == HierarchyDepth.FLAT:
-        hierarchy_instruction = """
-
-Create a FLAT code structure (no hierarchy). All codes should be at the same level with no parent-child relationships. Do NOT set parent_code_name for any code."""
+        hierarchy_instruction = f"\n\nCreate a FLAT {mode} structure (no hierarchy). All codes should be at the same level with no parent-child relationships. Do NOT set parent_code_name for any code."
     elif hierarchy_depth == HierarchyDepth.TWO_LEVEL:
-        hierarchy_instruction = """
+        hierarchy_instruction = f"""
 
-Create a TWO-LEVEL hierarchical code structure:
-- First, identify 3-5 broad, high-level categories (parent codes)
-- Then, create 2-4 specific sub-codes under each parent category
+Create a TWO-LEVEL hierarchical {mode} structure:
+- Maximum depth is 2 levels (parent and child only)
+- The top level should be broad categories of the {mode}, and the sub-level should be more specific and meaningful {mode}.
 - Parent codes should have parent_code_name = null
-- Sub-codes should have parent_code_name set to their parent's name
-- Maximum depth is 2 levels (parent and child only)"""
+"""
     else:  # HierarchyDepth.ARBITRARY
         hierarchy_instruction = """
 
 Create a HIERARCHICAL code structure with ARBITRARY depth:
-- Organize codes in a tree structure based on conceptual relationships
 - You can create multiple levels as needed to best represent the data structure
 - Set parent_code_name to organize codes hierarchically
 - Top-level codes should have parent_code_name = null
