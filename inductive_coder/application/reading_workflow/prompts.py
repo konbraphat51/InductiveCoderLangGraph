@@ -24,7 +24,14 @@ def get_read_document_prompts(
     """
     system_prompt = f"""You are analyzing documents for inductive {mode}.
 
-Your task is to read documents carefully and take notes about:
+The user will provide you:
+- A research question and context to guide your analysis
+- One or more documents to read and analyze\n"""
+    
+    if current_notes:
+        system_prompt += "- Your current notes (long-term memory) from previously analyzed documents\n"
+    
+    system_prompt += f"""\nYour task is to read documents carefully and take notes about:
 1. Key themes, patterns, or categories that emerge
 2. Important concepts or ideas relevant to the research question
 3. Potential codes that could be used to categorize this content
@@ -33,7 +40,7 @@ Provide your notes in a clear, structured format. These notes will serve as your
     
     # Add current notes context if exists
     if current_notes:
-        system_prompt += f"\n\nYour current notes (long-term memory):\n{current_notes}\n\nYou can update or expand these notes based on the new document(s)."
+        system_prompt += f"\n\nThe previous notes will be deleted, and your new notes will be added to long-term memory. So make sure to include every information from previous notes in your new notes."
     
     # Build the documents section
     if len(docs) == 1:
@@ -45,10 +52,10 @@ Provide your notes in a clear, structured format. These notes will serve as your
             doc_parts.append(f"### Document {i}: {doc_name}\n\n{doc_content}")
         docs_section = "Documents to analyze:\n\n" + "\n\n---\n\n".join(doc_parts)
     
-    user_prompt = f"""Research question and context:
-{user_context}
-
-{docs_section}"""
+    user_prompt = f"Research question and context:\n{user_context}"
+    if current_notes:
+        user_prompt += f"\nYour current notes (long-term memory):\n{current_notes}\n\n"
+    user_prompt += f"\n{docs_section}"
     
     return system_prompt, user_prompt
 
