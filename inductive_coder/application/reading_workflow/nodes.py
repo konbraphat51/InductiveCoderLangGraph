@@ -216,7 +216,6 @@ async def re_read_document_node(state: ReadingStateDict) -> dict[str, Any]:
     current_idx = state["current_doc_index"]
     documents = state["documents"]
     progress_callback = state.get("progress_callback")
-    notes_file_path = state.get("notes_file_path")
     batch_size = state.get("batch_size", 1)
     current_round = state.get("current_round", 1)
 
@@ -266,23 +265,6 @@ async def re_read_document_node(state: ReadingStateDict) -> dict[str, Any]:
         logger.info("[Re-reading round %d] (%d/%d) Done: %s", current_round, new_idx, total, batch_docs[0].path.name)
     if progress_callback:
         progress_callback(f"Re-reading (round {current_round})", new_idx, total)
-
-    # Write notes to file in real-time if path provided
-    if notes_file_path:
-        try:
-            notes_file_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(notes_file_path, "a", encoding="utf-8") as f:
-                if batch_size > 1:
-                    names = ", ".join(d.path.name for d in batch_docs)
-                    f.write(f"\n## [Round {current_round}] Documents {current_idx + 1}-{new_idx}/{total}: {names}\n\n")
-                else:
-                    f.write(f"\n## [Round {current_round}] Document {new_idx}/{total}: {batch_docs[0].path.name}\n\n")
-                f.write(response)
-                f.write("\n")
-                f.flush()
-            logger.debug("[Re-reading] Notes written to: %s", notes_file_path)
-        except Exception as e:
-            logger.error("[Re-reading] Failed to write notes: %s", e)
 
     # Append this document's missing-code notes to the list in State
     return {
