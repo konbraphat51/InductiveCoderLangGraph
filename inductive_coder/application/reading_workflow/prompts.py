@@ -118,3 +118,116 @@ Your notes from reading all documents:
 {all_notes}"""
     
     return system_prompt, user_prompt
+
+
+def get_re_read_document_prompts(
+    mode: str,
+    user_context: str,
+    docs: list[tuple[str, str]],
+    code_book_str: str,
+    current_notes: Optional[str] = None,
+) -> Tuple[str, str]:
+    """Get system and user prompts for re-reading documents with codebook reference.
+
+    Args:
+        mode: Analysis mode (coding or categorization)
+        user_context: User's research question and context
+        docs: List of (doc_name, doc_content) tuples to analyze in one call
+        code_book_str: String representation of the existing codebook
+        current_notes: Optional accumulated notes from previous docs in this round
+
+    Returns:
+        Tuple of (system_prompt, user_prompt)
+    """
+    system_prompt = f"""You are re-analyzing documents for inductive {mode}.
+
+You have already created a codebook based on a first reading. Your task now is to:
+1. Read each document again carefully
+2. Refer to the existing codebook
+3. Note any themes, patterns, or concepts that are NOT yet covered by the existing codes
+4. Focus on what is MISSING from the codebook
+
+Your notes should primarily describe gaps and missing codes rather than content already covered."""
+
+    if current_notes:
+        system_prompt += "\n\nYou have accumulated notes from previous documents in this round. Include all previously noted missing codes and add new observations from this document."
+
+    # Build the documents section
+    if len(docs) == 1:
+        doc_name, doc_content = docs[0]
+        docs_section = f"Document to analyze: {doc_name}\n\nContent:\n{doc_content}"
+    else:
+        doc_parts = []
+        for i, (doc_name, doc_content) in enumerate(docs, 1):
+            doc_parts.append(f"### Document {i}: {doc_name}\n\n{doc_content}")
+        docs_section = "Documents to analyze:\n\n" + "\n\n---\n\n".join(doc_parts)
+
+    user_prompt = f"Research question and context:\n{user_context}\n\n"
+    user_prompt += f"Existing codebook:\n{code_book_str}\n\n"
+    if current_notes:
+        user_prompt += f"Your current notes (missing codes identified so far):\n{current_notes}\n\n"
+    user_prompt += docs_section
+
+    return system_prompt, user_prompt
+
+
+def get_update_codebook_prompts(
+    mode: str,
+    user_context: str,
+    missing_codes_notes: str,
+    existing_codebook_str: str,
+    hierarchy_depth: HierarchyDepth = HierarchyDepth.FLAT,
+) -> Tuple[str, str]:
+    """Get system and user prompts for updating the codebook with missing codes.
+
+    Args:
+        mode: Analysis mode (coding or categorization)
+        user_context: User's research question and context
+        missing_codes_notes: Notes describing codes missing from the current codebook
+        existing_codebook_str: String representation of the existing codebook
+        hierarchy_depth: Hierarchy depth for code structure
+
+    Returns:
+        Tuple of (system_prompt, user_prompt)
+    """
+    base_system_prompt = f"""You are expanding a code book for inductive {mode}.
+
+You have an existing codebook and notes describing codes that appear to be missing.
+Your task is to return a complete, updated codebook that:
+1. Retains ALL existing codes unchanged
+2. Adds new codes identified from the missing-codes notes
+3. Ensures new codes are relevant to the research question
+4. Ensures new codes have clear criteria and do not duplicate existing codes
+"""
+
+    # Add hierarchy instructions based on depth
+    if hierarchy_depth == HierarchyDepth.FLAT:
+        hierarchy_instruction = f"\n\nMaintain a FLAT {mode} structure (no hierarchy). All codes should be at the same level with no parent-child relationships. Do NOT set parent_code_name for any code."
+    elif hierarchy_depth == HierarchyDepth.TWO_LEVEL:
+        hierarchy_instruction = f"""
+
+Maintain the TWO-LEVEL hierarchical {mode} structure:
+- Maximum depth is 2 levels (parent and child only)
+- The top level should be broad categories, and the sub-level should be more specific codes.
+- Parent codes should have parent_code_name = null
+"""
+    else:  # HierarchyDepth.ARBITRARY
+        hierarchy_instruction = """
+
+Maintain the HIERARCHICAL code structure with ARBITRARY depth:
+- You can create multiple levels as needed
+- Set parent_code_name to organize codes hierarchically
+- Top-level codes should have parent_code_name = null"""
+
+    system_prompt = base_system_prompt + hierarchy_instruction
+
+    user_prompt = f"""Research question and context:
+{user_context}
+
+Existing codebook:
+{existing_codebook_str}
+
+Notes on missing codes from re-reading:
+{missing_codes_notes}"""
+
+    return system_prompt, user_prompt

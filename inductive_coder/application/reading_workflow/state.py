@@ -23,3 +23,5 @@ class ReadingStateDict(TypedDict):
     batch_size: int  # Number of documents to read per LLM call
     progress_callback: Optional[Callable[[str, int, int], None]]
     notes_file_path: Optional[Path]  # Path to write notes in real-time
+    re_reading_rounds: int  # Number of additional re-reading rounds (0 = no re-reading)
+    current_round: int  # Current round number (0 = initial reading, 1+ = re-reading)
