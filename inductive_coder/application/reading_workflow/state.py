@@ -16,7 +16,8 @@ class ReadingStateDict(TypedDict):
     mode: AnalysisMode
     documents: list[Document]
     user_context: str
-    notes: str  # Long-term memory as a single editable text
+    notes: str  # Long-term memory as a single editable text (initial reading only)
+    re_reading_notes: list[str]  # Accumulated missing-code notes per doc/batch during re-reading
     current_doc_index: int
     code_book: CodeBook | None
     hierarchy_depth: HierarchyDepth

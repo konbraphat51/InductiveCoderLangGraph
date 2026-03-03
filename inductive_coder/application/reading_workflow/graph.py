@@ -44,6 +44,7 @@ class ReadingWorkflow:
             "documents": documents,
             "user_context": user_context,
             "notes": "",  # Start with empty long-term memory
+            "re_reading_notes": [],  # Empty list; populated during re-reading rounds
             "current_doc_index": 0,
             "code_book": None,
             "hierarchy_depth": hierarchy_depth,

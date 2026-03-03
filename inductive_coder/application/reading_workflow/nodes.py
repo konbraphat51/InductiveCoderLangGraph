@@ -225,7 +225,7 @@ async def re_read_document_node(state: ReadingStateDict) -> dict[str, Any]:
 
     user_context = state["user_context"]
     mode = state["mode"]
-    current_notes = state["notes"]
+    previous_notes: list[str] = list(state.get("re_reading_notes") or [])
     total = len(documents)
     code_book = state["code_book"]
 
@@ -254,7 +254,7 @@ async def re_read_document_node(state: ReadingStateDict) -> dict[str, Any]:
         user_context=user_context,
         docs=[(d.path.name, d.content) for d in batch_docs],
         code_book_str=code_book_str,
-        current_notes=current_notes if current_notes else None,
+        previous_notes=previous_notes if previous_notes else None,
     )
 
     response = await llm.generate(user_prompt, system_prompt=system_prompt)
@@ -284,15 +284,16 @@ async def re_read_document_node(state: ReadingStateDict) -> dict[str, Any]:
         except Exception as e:
             logger.error("[Re-reading] Failed to write notes: %s", e)
 
+    # Append this document's missing-code notes to the list in State
     return {
-        "notes": response,
+        "re_reading_notes": previous_notes + [response],
         "current_doc_index": new_idx,
     }
 
 
 async def update_codebook_node(state: ReadingStateDict) -> dict[str, Any]:
     """Expand the existing codebook with missing codes identified during re-reading."""
-    notes = state["notes"]
+    re_reading_notes: list[str] = list(state.get("re_reading_notes") or [])
     user_context = state["user_context"]
     mode = state["mode"]
     hierarchy_depth = state["hierarchy_depth"]
@@ -321,10 +322,15 @@ async def update_codebook_node(state: ReadingStateDict) -> dict[str, Any]:
 
     existing_codebook_str = _codebook_to_str(code_book) if code_book else ""
 
+    # Join the per-document missing-code notes into a single string for the prompt
+    missing_codes_notes = "\n\n---\n\n".join(
+        f"[{i + 1}] {note}" for i, note in enumerate(re_reading_notes)
+    )
+
     system_prompt, user_prompt = get_update_codebook_prompts(
         mode=mode.value,
         user_context=user_context,
-        missing_codes_notes=notes,
+        missing_codes_notes=missing_codes_notes,
         existing_codebook_str=existing_codebook_str,
         hierarchy_depth=hierarchy_depth,
     )
@@ -377,6 +383,6 @@ Return the complete codebook as a valid JSON object matching the CodeBookSchema.
         "code_book": updated_code_book,
         # Reset for the next round (if any)
         "current_doc_index": 0,
-        "notes": "",
+        "re_reading_notes": [],
         "current_round": current_round + 1,
     }

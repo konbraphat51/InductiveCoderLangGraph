@@ -125,7 +125,7 @@ def get_re_read_document_prompts(
     user_context: str,
     docs: list[tuple[str, str]],
     code_book_str: str,
-    current_notes: Optional[str] = None,
+    previous_notes: Optional[list[str]] = None,
 ) -> Tuple[str, str]:
     """Get system and user prompts for re-reading documents with codebook reference.
 
@@ -134,7 +134,8 @@ def get_re_read_document_prompts(
         user_context: User's research question and context
         docs: List of (doc_name, doc_content) tuples to analyze in one call
         code_book_str: String representation of the existing codebook
-        current_notes: Optional accumulated notes from previous docs in this round
+        previous_notes: Optional list of missing-code notes from previously processed
+            docs/batches in this round (one entry per doc/batch)
 
     Returns:
         Tuple of (system_prompt, user_prompt)
@@ -149,8 +150,8 @@ You have already created a codebook based on a first reading. Your task now is t
 
 Your notes should primarily describe gaps and missing codes rather than content already covered."""
 
-    if current_notes:
-        system_prompt += "\n\nYou have accumulated notes from previous documents in this round. Include all previously noted missing codes and add new observations from this document."
+    if previous_notes:
+        system_prompt += "\n\nNotes from previously analyzed documents in this round are provided below for reference."
 
     # Build the documents section
     if len(docs) == 1:
@@ -164,8 +165,9 @@ Your notes should primarily describe gaps and missing codes rather than content 
 
     user_prompt = f"Research question and context:\n{user_context}\n\n"
     user_prompt += f"Existing codebook:\n{code_book_str}\n\n"
-    if current_notes:
-        user_prompt += f"Your current notes (missing codes identified so far):\n{current_notes}\n\n"
+    if previous_notes:
+        numbered = "\n\n".join(f"[{i + 1}] {note}" for i, note in enumerate(previous_notes))
+        user_prompt += f"Notes on missing codes from previous documents in this round:\n{numbered}\n\n"
     user_prompt += docs_section
 
     return system_prompt, user_prompt
