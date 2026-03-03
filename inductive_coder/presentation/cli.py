@@ -93,6 +93,7 @@ def analyze(
     output_dir: Path = typer.Option("./output", "--output-dir", "-o", help="Output directory for results"),
     hierarchy_depth: str = typer.Option("1", "--hierarchy-depth", "-d", help="Code hierarchy depth: 1 (flat), 2 (two-level), or arbitrary (unlimited)"),
     batch_size: int = typer.Option(1, "--batch-size", "-b", help="Number of documents to read per LLM call in round 1 (default 1)"),
+    re_reading_rounds: int = typer.Option(0, "--re-reading-rounds", "-r", help="Number of additional re-reading rounds to refine the codebook (default 0)"),
 ) -> None:
     """Run inductive coding analysis."""
     
@@ -138,6 +139,7 @@ def analyze(
     console.print(f"Mode: [green]{analysis_mode.value}[/green]")
     console.print(f"Hierarchy Depth: [green]{hierarchy.value}[/green]")
     console.print(f"Batch Size: [green]{batch_size}[/green]")
+    console.print(f"Re-reading Rounds: [green]{re_reading_rounds}[/green]")
     console.print(f"Input: [blue]{input_dir}[/blue]")
     console.print(f"Output: [blue]{output_dir}[/blue]")
     
@@ -183,6 +185,7 @@ def analyze(
                 hierarchy_depth=hierarchy,
                 batch_size=batch_size,
                 progress_callback=progress_callback,
+                re_reading_rounds=re_reading_rounds,
             )
         )
         
@@ -254,8 +257,9 @@ def generate_codebook(
     output_file: Path = typer.Option("./code_book.json", "--output-file", "-o", help="Output file for code book"),
     hierarchy_depth: str = typer.Option("1", "--hierarchy-depth", "-d", help="Code hierarchy depth: 1 (flat), 2 (two-level), or arbitrary (unlimited)"),
     batch_size: int = typer.Option(1, "--batch-size", "-b", help="Number of documents to read per LLM call (default 1)"),
+    re_reading_rounds: int = typer.Option(0, "--re-reading-rounds", "-r", help="Number of additional re-reading rounds to refine the codebook (default 0)"),
 ) -> None:
-    """Generate code book only (Round 1 only) without applying codes."""
+    """Generate code book only (without applying codes). Optionally runs additional re-reading rounds to refine the codebook."""
     
     # Validate mode
     try:
@@ -294,6 +298,7 @@ def generate_codebook(
     console.print(f"Mode: [green]{analysis_mode.value}[/green]")
     console.print(f"Hierarchy Depth: [green]{hierarchy.value}[/green]")
     console.print(f"Batch Size: [green]{batch_size}[/green]")
+    console.print(f"Re-reading Rounds: [green]{re_reading_rounds}[/green]")
     console.print(f"Input: [blue]{input_dir}[/blue]")
     console.print(f"Output: [blue]{output_file}[/blue]")
     
@@ -332,6 +337,7 @@ def generate_codebook(
                 hierarchy_depth=hierarchy,
                 batch_size=batch_size,
                 progress_callback=progress_callback,
+                re_reading_rounds=re_reading_rounds,
             )
         )
         
