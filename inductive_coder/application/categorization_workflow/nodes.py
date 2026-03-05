@@ -15,12 +15,17 @@ from inductive_coder.logger import logger
 
 # Pydantic schemas for structured output
 
+class DocumentCodeEntrySchema(BaseModel):
+    """Schema for a single document code assignment."""
+    code_name: str = Field(description="Name of the code to apply")
+    rationale: str = Field(default="", description="Why this code applies to the document")
+
+
 class DocumentCodeSchema(BaseModel):
     """Schema for document codes."""
-    code_names: list[str] = Field(description="Names of codes to apply to this document")
-    rationales: dict[str, str] = Field(
-        default_factory=dict,
-        description="Rationale for each code (code_name -> rationale)"
+    codes: list[DocumentCodeEntrySchema] = Field(
+        default_factory=list,
+        description="List of codes to apply to this document, each with a rationale"
     )
 
 
@@ -59,15 +64,14 @@ async def categorize_single_document(state: SingleDocCategorizationState) -> dic
     # Convert to domain entities
     document_codes: list[DocumentCode] = []
     
-    for code_name in response["code_names"]:
-        code = code_book.get_code(code_name)
+    for entry in response["codes"]:
+        code = code_book.get_code(entry["code_name"])
         if code:
-            rationale = response.get("rationales", {}).get(code_name)
             document_codes.append(
                 DocumentCode(
                     file_path=doc.path,
                     code=code,
-                    rationale=rationale,
+                    rationale=entry.get("rationale") or None,
                 )
             )
     
