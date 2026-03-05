@@ -182,7 +182,7 @@ class JSONAnalysisResultRepository(IAnalysisResultRepository):
                 codes_by_name[dc.code.name] = []
             
             codes_by_name[dc.code.name].append({
-                "file": str(dc.file_path),
+                "file": str(dc.file_path.name),
                 "rationale": dc.rationale or "",
             })
         
