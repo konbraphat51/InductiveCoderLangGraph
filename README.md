@@ -13,9 +13,10 @@ An LLM-based inductive coding tool built with LangGraph for qualitative research
   - **Two-Level (depth 2)**: Parent-child relationships for organized coding
   - **Arbitrary Depth**: Unlimited hierarchy levels, decided by the LLM
 
-- **Two-Round Analysis:**
-  - **Round 1**: Read all files and create a code book
-  - **Round 2**: Apply codes based on the code book
+- **Multi-Round Analysis with Optional Re-reading:**
+  - **Initial Reading**: Read all files and create an initial code book
+  - **Optional Re-reading Rounds**: Selectively refine the code book by re-reading documents and identifying missing codes
+  - **Final Application**: Apply the refined codes based on the final code book
 
 - **Smart Optimization:**
   - Intelligent text chunking to minimize LLM token usage
@@ -137,6 +138,33 @@ uv run inductive-coder analyze \
 # Default batch-size is 1 (one document per LLM call)
 # Higher batch sizes are faster but may affect code consistency
 # Recommended range: 1-20 depending on document length and LLM context limit
+```
+
+**Re-reading Rounds** (refine code book quality):
+```bash
+# Run with 2 additional re-reading rounds
+uv run inductive-coder analyze \
+  --mode coding \
+  --input-dir ./data \
+  --prompt-file my_prompt.md \
+  --re-reading-rounds 2 \
+  --output-dir ./output
+
+# The re-reading process:
+# 1. Initial reading: Create the first code book
+# 2. Round 1 re-reading: Read documents again with the code book visible
+#    to identify and note any missing codes or patterns
+# 3. Update: Expand the code book with newly identified codes
+# 4. Round 2 re-reading: Repeat the process to further refine
+# 5. Final update: Create the refined code book for application
+
+# For codebook generation only (no code application):
+uv run inductive-coder generate-codebook \
+  --mode coding \
+  --input-dir ./data \
+  --prompt-file my_prompt.md \
+  --re-reading-rounds 1 \
+  --output-file ./refined_codebook.json
 ```
 
 **Create a manual code book**:

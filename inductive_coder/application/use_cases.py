@@ -45,9 +45,10 @@ class CodeBookGenerationUseCase:
         hierarchy_depth: HierarchyDepth = HierarchyDepth.FLAT,
         batch_size: int = 1,
         progress_callback: Optional[ProgressCallback] = None,
+        re_reading_rounds: int = 0,
     ) -> CodeBook:
         """
-        Execute Round 1 only to generate a code book.
+        Execute the reading workflow to generate a code book, with optional re-reading rounds.
         
         Args:
             mode: Analysis mode (coding or categorization)
@@ -57,6 +58,7 @@ class CodeBookGenerationUseCase:
             hierarchy_depth: Hierarchy depth for code structure
             batch_size: Number of documents to read per LLM call (default 1)
             progress_callback: Optional callback to report progress (workflow_name, current, total)
+            re_reading_rounds: Number of additional re-reading rounds to refine the codebook (default 0)
         
         Returns:
             Generated CodeBook
@@ -92,6 +94,7 @@ class CodeBookGenerationUseCase:
             batch_size=batch_size,
             progress_callback=progress_callback,
             notes_file_path=notes_file_path,
+            re_reading_rounds=re_reading_rounds,
         )
         
         if progress_callback:
@@ -128,6 +131,7 @@ class AnalysisUseCase:
         hierarchy_depth: HierarchyDepth = HierarchyDepth.FLAT,
         batch_size: int = 1,
         progress_callback: Optional[ProgressCallback] = None,
+        re_reading_rounds: int = 0,
     ) -> AnalysisResult:
         """
         Execute the analysis workflow.
@@ -141,6 +145,7 @@ class AnalysisUseCase:
             hierarchy_depth: Hierarchy depth for code structure
             batch_size: Number of documents to read per LLM call in round 1 (default 1)
             progress_callback: Optional callback to report progress (workflow_name, current, total)
+            re_reading_rounds: Number of additional re-reading rounds (default 0)
         
         Returns:
             AnalysisResult with codes applied
@@ -179,6 +184,7 @@ class AnalysisUseCase:
                 batch_size=batch_size,
                 progress_callback=progress_callback,
                 notes_file_path=notes_file_path,
+                re_reading_rounds=re_reading_rounds,
             )
             
             if progress_callback:
